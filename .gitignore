@@ -17,12 +17,12 @@ ENV/
 *.pot
 *.pyc
 *.mo
-*.sqlite3
-db.sqlite3
-*.db
-media/
-staticfiles/
-static/
+#*.sqlite3
+#db.sqlite3
+#*.db
+#media/
+#staticfiles/
+#static/
 local_settings.py
 *.swp
 
