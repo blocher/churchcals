@@ -1,0 +1,77 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+
+# Virtual Environment
+venv/
+env/
+ENV/
+.venv/
+.pip-selfcheck.json
+
+# Django specific
+*.log
+*.pot
+*.pyc
+*.mo
+*.sqlite3
+db.sqlite3
+*.db
+media/
+staticfiles/
+static/
+local_settings.py
+*.swp
+
+# Django migrations
+**/migrations/
+!*/migrations/__init__.py
+
+# VS Code / PyCharm
+.vscode/
+.idea/
+*.code-workspace
+
+# MacOS
+.DS_Store
+
+# Testing
+.coverage
+htmlcov/
+.tox/
+.nox/
+.pytest_cache/
+
+# MyPy
+.mypy_cache/
+
+# Pipenv
+Pipfile.lock
+
+# dotenv
+.env
+.env.*
+
+# Node (if using npm/webpack for static)
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# Build
+build/
+dist/
+*.egg-info/
+
+# Coverage reports
+coverage.xml
+*.cover
+
+# Other logs
+logs/
+*.log
+
+# System files
+Thumbs.db
