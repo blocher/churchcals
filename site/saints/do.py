@@ -9,6 +9,8 @@ from deep_translator import ChatGptTranslator, GoogleTranslator
 from google import genai
 from google.genai import types
 from pydantic import BaseModel, Field
+
+from saints import settings
 from saints.models import CalendarEvent
 
 BASE_URL = "https://www.divinumofficium.com/cgi-bin/horas/kalendar.pl"
@@ -61,7 +63,7 @@ def translate(text):
         return result
 
     print(text)
-    API_KEY = "AIzaSyAjWoqobPToyfesczOD2fj_29xczMU6QfM"
+    API_KEY = settings.GEMINI_API_KEY
     client = genai.Client(api_key=API_KEY)
     response = client.models.generate_content(
         # model='gemini-2.5-pro-preview-03-25',
