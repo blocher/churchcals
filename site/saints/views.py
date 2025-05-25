@@ -83,7 +83,7 @@ def welcome_view(request, year=None):
         month_day = (day.month, day.day)
 
         row = {
-            "date": f"<strong>{day.strftime('%A')}</strong><br><span style='font-size:1.1em;'>{day.strftime('%B %-d')}, {day.strftime('%Y')}</span>",
+            "date": f"{day.strftime('%a')}<br><span style='font-size:1.1em;'><strong>{day.strftime('%b')} {day.strftime('%-d')}</strong><br>{day.strftime('%Y')}</span>",
             "catholic_1954": format_display(serialize_events(calendars["calendar_1954"].get(month_day, []))),
             "catholic_1962": format_display(serialize_events(calendars["calendar_1960"].get(month_day, []))),
             "current": format_display(serialize_events(calendars["calendar_current"].get(month_day, []))),
