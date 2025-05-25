@@ -25,14 +25,15 @@
               rel="stylesheet" />
         <style>
       #wrapper {
-        max-height: 80vh;
-        overflow: auto;
+        height: auto;
+        max-height: none;
+        overflow: visible; /* allow table to extend and scroll naturally */
       }
 
       .tabulator .tabulator-header {
         position: sticky;
         top: 0;
-        z-index: 10;
+        z-index: 100;
         background: white;
       }
 
@@ -42,14 +43,10 @@
 
       html,
       body {
-        height: 100%;
+        height: auto;
         margin: 0;
-        overflow: hidden; /* Prevent body scrolling */
-      }
-
-      #wrapper {
-        height: calc(100vh - 350px); /* Adjust based on header height */
-        overflow: auto;
+        overflow-x: hidden;
+        /* Allow page to scroll, but not clip sticky header */
       }
 
       body {
@@ -57,8 +54,7 @@
         background: #f9fafb;
         color: #1f2937;
         padding: 2rem;
-        display: flex;
-        flex-direction: column;
+        display: block; /* allow normal block flow for scrolling */
       }
 
       h1 {
