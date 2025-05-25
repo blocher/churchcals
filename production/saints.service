@@ -1,0 +1,13 @@
+[Unit]
+Description=saints uvicorn daemon
+After=network.target
+
+[Service]
+Environment=DJANGO_SETTINGS_MODULE=saints.settings
+User=saints
+Group=saints
+WorkingDirectory=/var/www/saints.benlocher.com/site/
+ExecStart=/var/www/saints.benlocher.com/env/bin/gunicorn saints.asgi:application -w 1 -k uvicorn.workers.UvicornWorker --log-file /home/saints/logs/gunicorn.log
+
+[Install]
+WantedBy=multi-user.target
