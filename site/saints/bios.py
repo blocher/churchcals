@@ -143,7 +143,7 @@ class Tradition(BaseModel):
 
 class Traditions(BaseModel):
     traditions: List[Tradition] | None = Field(
-        description="List of pious or popular traditions associated with the saint or feast day, or None if no traditions are associated")
+        description="List of pious or popular traditions associated with the saint or feast day including official and unofficial/popular traditions in the church, town, or home, or None if no traditions are associated")
 
 
 class Quote(BaseModel):
@@ -255,6 +255,7 @@ def generate_bio(person: str, religion: str, calendar: str):
 
     # Define the system instruction
     system_instruction = agent_string[religion]
+    system_instruction = f"{system_instruction} You are an expert in the life and contributions of saints in Christianity, especially from the perspective of someone in {religion_string[religion]}. You are based in the United States of America, but have a global outlook and care about traditions from around the world."
 
     # Define the prompts
     prompts = [
@@ -291,7 +292,7 @@ def generate_bio(person: str, religion: str, calendar: str):
         (
             "ai_traditions",
             Traditions,
-            f"Include a bulleted list of interesting traditions for the feast day of {person} from around the world with which country they are from. If there is nothing notable, return None. Do not use the first person ever. Include just the bullet points—no intro text or other text.",
+            f"Include a bulleted list of interesting pious or popular traditions for the feast day of {person} from the U.S. and around the world with which country or region they are from including official and unofficial / popular traditions in the church, town, and home. If there is nothing notable, return None. Do not use the first person ever. Include just the bullet points—no intro text or other text.",
         ),
         (
             "ai_foods",
