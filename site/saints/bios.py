@@ -7,7 +7,22 @@ from google.generativeai import GenerationConfig
 from pydantic import BaseModel, Field
 
 from saints import settings
-from saints.models import CalendarEvent
+from saints.models import (
+    CalendarEvent,
+    Biography,
+    ShortDescriptionsModel,
+    QuoteModel,
+    BibleVerseModel,
+    HagiographyCitationModel,
+    HagiographyModel,
+    LegendModel,
+    BulletPointsModel,
+    BulletPoint,
+    TraditionModel,
+    FoodModel,
+    WritingModel,
+    ImageModel,
+)
 from typing import List
 from google.genai.types import GenerationConfig, Tool, GoogleSearch
 import re
@@ -295,6 +310,9 @@ def generate_bio(person: str, religion: str, calendar: str):
         ),
     ]
 
+    # Create the Biography instance
+    biography = Biography.objects.create(name=person, religion=religion, calendar=calendar)
+
     conversation_history = []
     for p_name, p_model, p_text in prompts:
         # Construct the formatted prompt with JSON schema
@@ -351,6 +369,128 @@ def generate_bio(person: str, religion: str, calendar: str):
             print(f"[ERROR] Validation or parsing error for {p_name} for {person}: {e}")
             print(f"[ERROR] Raw response text: {cleaned_response_text}")
             continue
+
+        # Save to DB
+        if p_name == "short_descriptions":
+            ShortDescriptionsModel.objects.create(
+                biography=biography,
+                one_sentence_description=completion_result.one_sentence_description,
+                one_paragraph_description=completion_result.one_paragraph_description,
+            )
+        elif p_name == "quotes":
+            QuoteModel.objects.create(
+                biography=biography,
+                quote=completion_result.quote,
+                person=completion_result.person,
+                date=completion_result.date,
+            )
+        elif p_name == "verse":
+            BibleVerseModel.objects.create(
+                biography=biography,
+                citation=completion_result.citation,
+                text=completion_result.text,
+                bible_version_abbreviation=completion_result.bible_version_abbreviation,
+                bible_version=completion_result.bible_version,
+                bible_version_year=completion_result.bible_version_year,
+            )
+        elif p_name == "ai_hagiography":
+            hagiography_model = HagiographyModel.objects.create(
+                biography=biography,
+                hagiography=completion_result.hagiography,
+            )
+            if completion_result.citations:
+                for c in completion_result.citations:
+                    citation_obj, _ = HagiographyCitationModel.objects.get_or_create(
+                        citation=c.citation,
+                        url=c.url,
+                        date_accessed=c.date_accessed,
+                        title=c.title,
+                    )
+                    hagiography_model.citations.add(citation_obj)
+        elif p_name == "ai_legend":
+            legend_model = LegendModel.objects.create(
+                biography=biography,
+                legend=completion_result.legend,
+                title=completion_result.title,
+            )
+            if completion_result.citations:
+                for c in completion_result.citations:
+                    citation_obj, _ = HagiographyCitationModel.objects.get_or_create(
+                        citation=c.citation,
+                        url=c.url,
+                        date_accessed=c.date_accessed,
+                        title=c.title,
+                    )
+                    legend_model.citations.add(citation_obj)
+        elif p_name == "ai_bullet_points":
+            bullet_points_model = BulletPointsModel.objects.create(biography=biography)
+            if completion_result.bullet_points:
+                for i, bp in enumerate(completion_result.bullet_points):
+                    BulletPoint.objects.create(bullet_points_model=bullet_points_model, text=bp, order=i  )
+            if completion_result.citations:
+                for c in completion_result.citations:
+                    citation_obj, _ = HagiographyCitationModel.objects.get_or_create(
+                        citation=c.citation,
+                        url=c.url,
+                        date_accessed=c.date_accessed,
+                        title=c.title,
+                    )
+                    bullet_points_model.citations.add(citation_obj)
+        elif p_name == "ai_traditions":
+            if completion_result.traditions:
+                for idx, t in enumerate(completion_result.traditions):
+                    TraditionModel.objects.create(
+                        biography=biography,
+                        tradition=t.tradition,
+                        country_of_origin=t.country_of_origin,
+                        reason_associated_with_saint=t.reason_associated_with_saint,
+                        order=idx,
+                    )
+        elif p_name == "ai_foods":
+            if completion_result.foods:
+                for idx, f in enumerate(completion_result.foods):
+                    FoodModel.objects.create(
+                        biography=biography,
+                        food_name=f.food_name,
+                        description=f.description,
+                        country_of_origin=f.country_of_origin,
+                        reason_associated_with_saint=f.reason_associated_with_saint,
+                        order=idx,
+                    )
+        elif p_name == "ai_writings":
+            if completion_result.writing_by_saint:
+                WritingModel.objects.create(
+                    biography=biography,
+                    writing=completion_result.writing_by_saint.writing,
+                    date=completion_result.writing_by_saint.date,
+                    title=completion_result.writing_by_saint.title,
+                    url=completion_result.writing_by_saint.url,
+                    author=completion_result.writing_by_saint.author,
+                    type="by",
+                    order=0,
+                )
+            if completion_result.writing_about_saint:
+                WritingModel.objects.create(
+                    biography=biography,
+                    writing=completion_result.writing_about_saint.writing,
+                    date=completion_result.writing_about_saint.date,
+                    title=completion_result.writing_about_saint.title,
+                    url=completion_result.writing_about_saint.url,
+                    author=completion_result.writing_about_saint.author,
+                    type="about",
+                    order=1,
+                )
+        elif p_name == "images":
+            if completion_result.images:
+                for idx, img in enumerate(completion_result.images):
+                    ImageModel.objects.create(
+                        biography=biography,
+                        url=img.url,
+                        title=img.title,
+                        author=img.author,
+                        date=img.date,
+                        order=idx,
+                    )
 
         # Add the model's response to the conversation history
         model_message = {"role": "model", "parts": [{"text": response_text}]}

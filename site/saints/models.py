@@ -184,3 +184,103 @@ class CalendarEvent(models.Model):
 
     def __str__(self):
         return f"{self.english_name} ({self.english_rank }) - {self.month}/{self.day}/{self.year} ({self.calendar})"
+
+
+class Biography(BaseModel):
+    name = models.CharField(max_length=512)
+    religion = models.CharField(max_length=64)
+    calendar = models.CharField(max_length=64)
+
+
+class ShortDescriptionsModel(models.Model):
+    biography = models.OneToOneField(Biography, on_delete=models.CASCADE, related_name="short_descriptions")
+    one_sentence_description = models.TextField()
+    one_paragraph_description = models.TextField()
+
+
+class QuoteModel(models.Model):
+    biography = models.OneToOneField(Biography, on_delete=models.CASCADE, related_name="quote")
+    quote = models.TextField()
+    person = models.CharField(max_length=256)
+    date = models.CharField(max_length=128)
+
+
+class BibleVerseModel(models.Model):
+    biography = models.OneToOneField(Biography, on_delete=models.CASCADE, related_name="bible_verse")
+    citation = models.CharField(max_length=256)
+    text = models.TextField()
+    bible_version_abbreviation = models.CharField(max_length=32)
+    bible_version = models.CharField(max_length=128)
+    bible_version_year = models.CharField(max_length=8)
+
+
+class HagiographyCitationModel(models.Model):
+    citation = models.TextField()
+    url = models.URLField(null=True, blank=True)
+    date_accessed = models.CharField(max_length=64, null=True, blank=True)
+    title = models.CharField(max_length=256, null=True, blank=True)
+
+    def __str__(self):
+        url_part = f" - { self.url }" if self.url else ""
+        return f"{self.title or 'Citation'}{url_part}"
+
+
+class HagiographyModel(models.Model):
+    biography = models.OneToOneField(Biography, on_delete=models.CASCADE, related_name="hagiography")
+    hagiography = models.TextField()
+    citations = models.ManyToManyField(HagiographyCitationModel, blank=True, related_name="hagiographies")
+
+
+class LegendModel(models.Model):
+    biography = models.OneToOneField(Biography, on_delete=models.CASCADE, related_name="legend")
+    legend = models.TextField()
+    title = models.CharField(max_length=256)
+    citations = models.ManyToManyField(HagiographyCitationModel, blank=True, related_name="legends")
+
+
+class BulletPointsModel(models.Model):
+    biography = models.OneToOneField(Biography, on_delete=models.CASCADE, related_name="bullet_points")
+    citations = models.ManyToManyField(HagiographyCitationModel, blank=True, related_name="bullet_points")
+
+
+class BulletPoint(models.Model):
+    bullet_points_model = models.ForeignKey(BulletPointsModel, on_delete=models.CASCADE, related_name="bullet_points")
+    text = models.TextField()
+    order = models.PositiveIntegerField(default=0)
+
+
+class TraditionModel(models.Model):
+    biography = models.ForeignKey(Biography, on_delete=models.CASCADE, related_name="traditions")
+    tradition = models.TextField()
+    country_of_origin = models.CharField(max_length=128, null=True, blank=True)
+    reason_associated_with_saint = models.TextField(null=True, blank=True)
+    order = models.PositiveIntegerField(default=0)
+
+
+class FoodModel(models.Model):
+    biography = models.ForeignKey(Biography, on_delete=models.CASCADE, related_name="foods")
+    food_name = models.CharField(max_length=128)
+    description = models.TextField()
+    country_of_origin = models.CharField(max_length=128, null=True, blank=True)
+    reason_associated_with_saint = models.TextField(null=True, blank=True)
+    order = models.PositiveIntegerField(default=0)
+
+
+class WritingModel(models.Model):
+    biography = models.ForeignKey(Biography, on_delete=models.CASCADE, related_name="writings")
+    writing = models.TextField()
+    date = models.CharField(max_length=128)
+    title = models.CharField(max_length=256)
+    url = models.URLField(null=True, blank=True)
+    author = models.CharField(max_length=256, null=True, blank=True)
+    type = models.CharField(max_length=32, choices=[('by', 'By Saint'), ('about', 'About Saint')])
+    order = models.PositiveIntegerField(default=0)
+
+
+class ImageModel(models.Model):
+    biography = models.ForeignKey(Biography, on_delete=models.CASCADE, related_name="images")
+    url = models.URLField()
+    title = models.CharField(max_length=256)
+    author = models.CharField(max_length=256, null=True, blank=True)
+    date = models.CharField(max_length=128, null=True, blank=True)
+    order = models.PositiveIntegerField(default=0)

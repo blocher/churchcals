@@ -38,6 +38,7 @@ ALLOWED_HOSTS = ['127.0.0.1', 'saints.benlocher.com']
 # Application definition
 
 INSTALLED_APPS = [
+    "nested_admin",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
