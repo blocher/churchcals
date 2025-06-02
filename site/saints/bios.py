@@ -223,6 +223,15 @@ class Images(BaseModel):
 
 
 def generate_bio(person: str, religion: str, calendar: str):
+
+    event = None
+    year = 2025
+    while event is None:
+        event = CalendarEvent.objects.filter(english_name=person, calendar=calendar, date__year=2025).first()
+        year = year + 1
+
+    feast_prompt = f"For all prompts, we will be discussing the feast day of {person} which was/will be commemorated on {event.date} in the {calendar} calendar. Make sure to identify the correct feast or person in cases where there are multiple saints with the same name."
+
     agent_string = {
         "catholic": "You are a Roman Catholic who is fully obedient to the magisterium of the Catholic Church, and familiar with the Catholic patrimony, traditions, and beliefs.",
         "ordinariate": "You are a Roman Catholic who is fully obedient to the magisterium of the Catholic Church, a member of the Anglican Ordinariate, and familiar with the Anglican patrimony, especially the Book of Divine Worship and the Anglican Use of the Roman Rite.",
@@ -256,7 +265,7 @@ def generate_bio(person: str, religion: str, calendar: str):
     # Define the system instruction
     system_instruction = agent_string[religion]
     system_instruction = f"{system_instruction} You are an expert in the life and contributions of saints in Christianity, especially from the perspective of someone in {religion_string[religion]}. You are based in the United States of America, but have a global outlook and care about traditions from around the world."
-
+    system_instruction = f"{system_instruction} { feast_prompt }"
     # Define the prompts
     prompts = [
         (
@@ -307,12 +316,37 @@ def generate_bio(person: str, religion: str, calendar: str):
         (
             "images",
             Images,
-            f"Return 3-5 images of {person} that are in the public domain or have a Creative Commons license. Include the URL to the image, the title of the image, and the author of the image. If there are no images, return none.",
+            f"Return 3-5 images of {person} that are in the public domain or have a Creative Commons license. Include the URL to the image, the title of the image, and the author of the image. Double check that the URL is valid, accessible, and is a direct link to the image. If there are no images, return none.",
         ),
     ]
 
-    # Create the Biography instance
-    biography = Biography.objects.create(name=person, religion=religion, calendar=calendar)
+    # Find existing Biography or create a new one
+    biography = Biography.objects.filter(name=person, religion=religion).first()
+    if biography:
+        # Delete related objects (OneToOne and ForeignKey relationships)
+        if hasattr(biography, 'short_descriptions'):
+            biography.short_descriptions.delete()
+        if hasattr(biography, 'quote'):
+            biography.quote.delete()
+        if hasattr(biography, 'bible_verse'):
+            biography.bible_verse.delete()
+        if hasattr(biography, 'hagiography'):
+            biography.hagiography.delete()
+        if hasattr(biography, 'legend'):
+            biography.legend.delete()
+        if hasattr(biography, 'bullet_points'):
+            biography.bullet_points.delete()
+        biography.traditions.all().delete()
+        biography.foods.all().delete()
+        biography.writings.all().delete()
+        biography.images.all().delete()
+        # Optionally update fields if needed
+        biography.name = person
+        biography.religion = religion
+        biography.calendar = calendar
+        biography.save()
+    else:
+        biography = Biography.objects.create(name=person, religion=religion, calendar=calendar)
 
     conversation_history = []
     for p_name, p_model, p_text in prompts:
@@ -512,3 +546,25 @@ def generate_bio(person: str, religion: str, calendar: str):
                       f"License: {getattr(source, 'license', 'N/A')}")
         else:
             print("  None")
+
+
+def clean_calendar_event_names():
+    suffixes = [
+        " Solemnity",
+        " Feast",
+        " Memorial",
+        " Optional Memorial",
+        " Commemoration",
+    ]
+    for event in CalendarEvent.objects.all():
+        original_name = event.english_name
+        new_name = original_name
+        for suffix in suffixes:
+            if new_name.endswith(suffix):
+                new_name = new_name[: -len(suffix)]
+                break
+        if new_name != original_name:
+            print(f"Before: {original_name} | After: {new_name}")
+            event.english_name = new_name
+            event.save()
+
