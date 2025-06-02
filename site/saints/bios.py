@@ -1,11 +1,27 @@
 import time
+from google import genai
+from google.genai import types
+import json
 
-from openai import OpenAI
+from google.generativeai import GenerationConfig
 from pydantic import BaseModel, Field
 
+from saints import settings
 from saints.models import CalendarEvent
 from typing import List
+from google.genai.types import GenerationConfig, Tool, GoogleSearch
+import re
 
+def clean_json_string(response_text: str) -> str:
+    """
+    Removes triple backticks and optional 'json' from the start and end of the response text.
+    """
+    # Match patterns like ```json\n{...}\n``` or ```\n{...}\n```
+    pattern = r"^```(?:json)?\n(.*)\n```$"
+    match = re.match(pattern, response_text.strip(), re.DOTALL)
+    if match:
+        return match.group(1).strip()
+    return response_text.strip()
 
 def collect_bios():
     traditional = (CalendarEvent.objects.filter(
@@ -191,13 +207,13 @@ class Images(BaseModel):
         description="List of 3-5 images of the saint or feast day that are in the public domain or have a Creative Commons license. Each image should include the URL to the image, the title of the image, and the author of the image. If there are no images, return None.")
 
 
-def generate_bio(person, religion, calendar):
+def generate_bio(person: str, religion: str, calendar: str):
     agent_string = {
-        "catholic": "You are a Roman Catholic who is fully obedient to the magisterium of that Catholic Church, and familiar with the Catholic patrimony, traditions, and beliefs.",
-        "ordinariate": "You are Roman Catholic who is fully obedient to the magisterium of the Catholic Church, who is a member of the Anglican Ordinariate in the Catholic Church and familiar with the Anglican patrimony, especially the Book of Divine Worship and the Anglican Use of the Roman Rite",
-        "acna": "You are a member of the Anglican Church in North America, and is obedient and subscribes to the Anglican formularies such as the Book of Common Prayer and the 39 articles. You are NOT a member of the Episcopal Church in the United States, but rather the ACNA.",
-        "tec": "You are a member of the the Episcopal Church in the United States, and part of the worldwide Anglican Communion, familiar with the Anglican tradition and part of the modern Episcopal Church.",
-        "traditional": "You are a traditional Roman Catholic who is fully obedient to the magisterium of the Catholic Church and in communion with the Pope, but steeped in the tradition of the the Traditional Latin Mass and the pre-1970 Roman Rite (especially the 1954 or 1960 calendar), and familiar with the Catholic patrimony. You may belong to a traditional society like the FSSP or ICKSP, or you may be a layperson who attends the Traditional Latin Mass.",
+        "catholic": "You are a Roman Catholic who is fully obedient to the magisterium of the Catholic Church, and familiar with the Catholic patrimony, traditions, and beliefs.",
+        "ordinariate": "You are a Roman Catholic who is fully obedient to the magisterium of the Catholic Church, a member of the Anglican Ordinariate, and familiar with the Anglican patrimony, especially the Book of Divine Worship and the Anglican Use of the Roman Rite.",
+        "acna": "You are a member of the Anglican Church in North America, obedient to the Anglican formularies such as the Book of Common Prayer and the 39 Articles. You are not a member of the Episcopal Church in the United States.",
+        "tec": "You are a member of the Episcopal Church in the United States, part of the worldwide Anglican Communion, familiar with the Anglican tradition and the modern Episcopal Church.",
+        "traditional": "You are a traditional Roman Catholic who is fully obedient to the magisterium of the Catholic Church and in communion with the Pope, steeped in the tradition of the Traditional Latin Mass and the pre-1970 Roman Rite (especially the 1954 or 1960 calendar), and familiar with the Catholic patrimony. You may belong to a traditional society like the FSSP or ICKSP, or be a layperson who attends the Traditional Latin Mass.",
     }
 
     religion_string = {
@@ -216,104 +232,142 @@ def generate_bio(person, religion, calendar):
         "traditional": "Douay-Rheims Bible (Challoner Revision) (DRC) (1752)",
     }
 
+    # Initialize the GenAI client
+    client = genai.Client(api_key=settings.GEMINI_API_KEY)
+
+    # Define the model name
+    model_name = "gemini-2.5-flash-preview-05-20"
+
+    # Define the system instruction
+    system_instruction = agent_string[religion]
+
+    # Define the prompts
     prompts = [
         (
             "short_descriptions",
             ShortDescriptions,
-            f"Provide two very short descriptions of who {person} is, one that is a single sentence long and one that is a single paragraph long. Include what the person is known for and their role in the Christian life and church, especially from the perspective of someone in {religion_string[religion]}. You don't need to include the name of the religion (you can assume the reader is {religion_string[religion]}.",
+            f"Provide two very short descriptions of who {person} is, one that is a single sentence long and one that is a single paragraph long. Include what the person is known for and their role in the Christian life and church, especially from the perspective of someone in {religion_string[religion]}. You don't need to include the name of the religion (you can assume the reader is {religion_string[religion]}).",
         ),
         (
             "quotes",
             Quote,
-            f"List one quote either by or about {person} that best represents them and their importance to Christianity?",
+            f"List one quote either by or about {person} that best represents them and their importance to Christianity.",
         ),
         (
             "verse",
             BibleVerse,
-            f"What is one bible verse in {bible_version[religion]} that best represents the life, work, and beliefs of {person}? Include the exact quote with book chapter and verse and version of the Bible.",
+            f"What is one Bible verse in {bible_version[religion]} that best represents the life, work, and beliefs of {person}? Include the exact quote with book, chapter, and verse, and version of the Bible.",
         ),
         (
             "ai_hagiography",
             Hagiography,
-            f"Write a hagiographical biography of {person} that is at least 6 paragraphs and 600 words and is rather detailed. Include just the biography -- no intro text or other text. It should be an engaging narrative of the person's life and why s/he is important in the Christian tradition, especially from the perspective of someone in {religion_string[religion]}.",
+            f"Write a hagiographical biography of {person} that is at least 6 paragraphs and 600 words and is rather detailed. Include just the biography—no intro text or other text. It should be an engaging narrative of the person's life and why they are important in the Christian tradition, especially from the perspective of someone in {religion_string[religion]}.",
         ),
         (
             "ai_legend",
             Legend,
-            f"Tell an story, anecdote, or pious legend from the life of {person} that is interesting and revealing of their character and faith. Include just the title and story -- no intro text or other text. Tell it as storyteller with a narrative, dramatic style.",
+            f"Tell a story, anecdote, or pious legend from the life of {person} that is interesting and revealing of their character and faith. Include just the title and story—no intro text or other text. Tell it as a storyteller with a narrative, dramatic style.",
         ),
         (
             "ai_bullet_points",
             BulletPoints,
-            f"Summarize {person}'s life and contributions to the Christian life in 4-6 short bullet points. Include just the bullet points -- no intro text or other text. Include important events, contributions, and beliefs that are significant in the Christian tradition, especially from the perspective of someone in {religion_string[religion]}.",
+            f"Summarize {person}'s life and contributions to the Christian life in 4-6 short bullet points. Include just the bullet points—no intro text or other text. Include important events, contributions, and beliefs that are significant in the Christian tradition, especially from the perspective of someone in {religion_string[religion]}.",
         ),
         (
             "ai_traditions",
             Traditions,
-            f"Include a bulleted list of interesting traditions for the feast day of {person} from around the world with which country they are from. If there is nothing notable, return just the letters 'N/A' and absolutely no other text. Do not use the first person ever. Include just the bullet points -- no intro text or other text.",
+            f"Include a bulleted list of interesting traditions for the feast day of {person} from around the world with which country they are from. If there is nothing notable, return None. Do not use the first person ever. Include just the bullet points—no intro text or other text.",
         ),
         (
             "ai_foods",
             Foods,
-            f"Include a bulleted list of interesting foods or culinary habits for the feast day of {person} from around the world with which country they are from. If there is nothing notable, return just the letters 'N/A' and absolutely no other text. Do not use the first person ever. Include just the bullet points -- no intro text or other text.",
+            f"Include a bulleted list of interesting foods or culinary habits for the feast day of {person} from around the world with which country they are from. If there is nothing notable, return None. Do not use the first person ever. Include just the bullet points—no intro text or other text.",
         ),
         (
             "ai_writings",
             Writings,
-            f"Include two representative writings by {person} that best articulates their beliefs, teachings, or contributions to Christianity (one by the saint (if there is one) and one about the saint (if there is one)). This should be a word-for-word original text of the writing (literally translated into English if necessary). Aim for 300-4000 words. Include just the writing -- no intro text or other text.",
+            f"Include two representative writings by {person} that best articulate their beliefs, teachings, or contributions to Christianity (one by the saint, if there is one, and one about the saint, if there is one). This should be a word-for-word original text of the writing (literally translated into English if necessary). Aim for 300-4000 words. Include just the writing—no intro text or other text.",
         ),
-        ("images",
-         Images,
-         f"Return 3-5 images of {person} that are in the public domain or have a Creative Commons license. Include the URL to the image, the title of the image, and the author of the image. If there are no images, return none."
-         )
+        (
+            "images",
+            Images,
+            f"Return 3-5 images of {person} that are in the public domain or have a Creative Commons license. Include the URL to the image, the title of the image, and the author of the image. If there are no images, return none.",
+        ),
     ]
 
-    messages = [
-        {
-            "role": "system",
-            "content": agent_string[religion],
-        },
-    ]
+    conversation_history = []
+    for p_name, p_model, p_text in prompts:
+        # Construct the formatted prompt with JSON schema
+        json_instruction = f"Use Google Search for every factual claim and cite your sources in the citation_metadata for all factual claims, and include a citation for every paragraph or fact whenever possible (in the citation_metadata attribute, not the content response). Format your response as valid JSON that conforms to this schema: {p_model.schema_json()}"
+        formatted_prompt = f"{p_text}\n\n{json_instruction}"
 
-    for prompt in prompts:
-        client = OpenAI()
-        messages = messages + [
-            {
-                "role": "user",
-                "content": prompt[2],
-            },
-        ]
+        # Add the new user message to the conversation history
+        user_message = {"role": "user", "parts": [{"text": formatted_prompt}]}
+        conversation_history.append(user_message)
 
-        params = {
-            "model": "gpt-4o-search-preview",
-            "messages": messages,
-            "response_format": prompt[1],
-            "max_tokens": 16384,
-        }
-        completion = False
+        # Define the generation configuration
+        generation_config = types.GenerateContentConfig(
+            system_instruction=system_instruction,
+            temperature=0.7,
+            max_output_tokens=65535,
+            # tools=[Tool(google_search=GoogleSearch())],
+            response_mime_type="application/json",
+            response_schema=p_model,
+        )
+
+        # Attempt to generate content with retries
+        response = None
         for attempt in range(5):
             try:
-                completion = client.beta.chat.completions.parse(**params)
+                response = client.models.generate_content(
+                    model=model_name,
+                    contents=conversation_history,
+                    config=generation_config,
+                )
                 break
             except Exception as e:
-                print(e)
+                print(f"Error during Gemini API call for {p_name} (attempt {attempt + 1}/5): {e}")
                 if attempt < 4:
-                    time.sleep(0.5)
-        if not hasattr(completion, "choices") or not completion.choices:
-            print(f"Failed to get {prompt[0]} for {person}")
-            print(completion)
-            return
+                    time.sleep(0.5 * (attempt + 1))
+                else:
+                    print(f"Failed to get {p_name} for {person} after 5 attempts.")
+                    continue
 
-        # Store the completion result and annotations separately
-        completion_result = completion.choices[0].message.parsed
-        annotations = completion.choices[0].message.annotations
+        if not response or not response.candidates:
+            print(f"Failed to get a valid response for {p_name} for {person} from Gemini.")
+            continue
 
-        messages.append({
-            "role": "assistant",
-            "content": str(completion_result)
-        })
+        # Extract the response text
+        response_text = response.candidates[0].content.parts[0].text
+        cleaned_response_text = clean_json_string(response_text)
 
-        # Now you can work with both separately
-        print(f"=== {prompt[0]} ===")
+        try:
+            completion_result = p_model.model_validate_json(cleaned_response_text)
+        except json.JSONDecodeError as e:
+            print(f"[ERROR] Failed to parse JSON response for {p_name} for {person}: {e}")
+            print(f"[ERROR] Raw response text: {cleaned_response_text}")
+            continue
+        except Exception as e:
+            print(f"[ERROR] Validation or parsing error for {p_name} for {person}: {e}")
+            print(f"[ERROR] Raw response text: {cleaned_response_text}")
+            continue
+
+        # Add the model's response to the conversation history
+        model_message = {"role": "model", "parts": [{"text": response_text}]}
+        conversation_history.append(model_message)
+
+        # Print the completion result
+        print(f"=== {p_name} ===")
         print("Completion result:", completion_result)
-        print("Annotations:", annotations)
+
+        # Handle citations if available
+        citation_metadata = response.candidates[0].citation_metadata
+        print("Citations (Annotations):")
+        if citation_metadata and getattr(citation_metadata, 'citations', None):
+            for source in citation_metadata.citations:
+                print(f"  - Start Index: {getattr(source, 'start_index', 'N/A')}, "
+                      f"End Index: {getattr(source, 'end_index', 'N/A')}, "
+                      f"URI: {getattr(source, 'uri', 'N/A')}, "
+                      f"License: {getattr(source, 'license', 'N/A')}")
+        else:
+            print("  None")
