@@ -138,6 +138,15 @@
             border-bottom: 3px solid transparent;
             transition: all 0.3s ease;
             font-weight: 500;
+            position: relative;
+        }
+
+        .tab.has-biography:before {
+            content: "📖";
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            font-size: 0.8rem;
         }
 
         .tab:hover {
@@ -374,7 +383,7 @@
                 <!-- Multiple events - show tabs -->
                 <div class="tabs">
                     {% for event_data in events_with_biographies %}
-                    <div class="tab {% if forloop.first %}active{% endif %}" 
+                    <div class="tab {% if forloop.first %}active{% endif %}{% if event_data.biography %} has-biography{% endif %}" 
                          onclick="showTab({{ forloop.counter0 }})">
                         {{ event_data.event.english_name|truncatechars:30 }}
                     </div>
@@ -510,16 +519,35 @@
     </div>
 
     <script>
+        // Get CSRF token
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+
         function switchCalendar(calendar) {
             // Send AJAX request to update session
             fetch(window.location.pathname, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded',
-                    'X-CSRFToken': '{{ csrf_token }}'
+                    'X-CSRFToken': getCookie('csrftoken')
                 },
                 body: 'selected_calendar=' + calendar
             }).then(() => {
+                window.location.reload();
+            }).catch(error => {
+                console.error('Error switching calendar:', error);
                 window.location.reload();
             });
         }

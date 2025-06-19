@@ -107,13 +107,18 @@ def daily_view(request, date):
         # Parse the date string (expected format: YYYY-MM-DD)
         year, month, day = map(int, date.split('-'))
         target_date = datetime.date(year, month, day)
+        
+        # Validate date range (reasonable liturgical calendar range)
+        if year < 1900 or year > 2100:
+            raise Http404("Date out of range")
+            
     except (ValueError, TypeError):
         raise Http404("Invalid date format")
     
     # Handle calendar switching via POST
     if request.method == 'POST':
         selected_calendar = request.POST.get('selected_calendar')
-        if selected_calendar:
+        if selected_calendar in ['catholic_1954', 'catholic_1962', 'current', 'ordinariate', 'acna', 'tec']:
             request.session['selected_calendar'] = selected_calendar
     
     # Get selected calendar from session, default to Catholic (Current)
@@ -152,11 +157,13 @@ def daily_view(request, date):
         biography = None
         if event.saint_name:
             biography = Biography.objects.filter(name__icontains=event.saint_name).first()
-        elif event.english_name:
-            # Try exact match first, then partial match
+        elif event.english_name and event.is_person:
+            # Try exact match first, then partial match for saints/people
             biography = Biography.objects.filter(name__iexact=event.english_name).first()
             if not biography:
-                biography = Biography.objects.filter(name__icontains=event.english_name.split(',')[0]).first()
+                # Extract first name part for more flexible matching
+                name_part = event.english_name.split(',')[0].strip()
+                biography = Biography.objects.filter(name__icontains=name_part).first()
         
         events_with_biographies.append({
             'event': event,
