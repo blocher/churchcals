@@ -269,6 +269,16 @@
         flex-grow: 1;
         overflow-y: auto;
       }
+
+      /* Make date cells look clickable */
+      .tabulator-cell[tabulator-field="date"] {
+        cursor: pointer;
+        transition: background-color 0.2s ease;
+      }
+
+      .tabulator-cell[tabulator-field="date"]:hover {
+        background-color: #f0f4ff !important;
+      }
         </style>
     </head>
     <body>
@@ -352,6 +362,13 @@
             formatter: "html",
             field: "date",
               frozen:true,
+            cellClick: function(e, cell) {
+              // Navigate to daily view when date cell is clicked
+              const dateLink = cell.getRow().getData().date_link;
+              if (dateLink) {
+                window.location.href = `/day/${dateLink}/`;
+              }
+            },
             headerFilter: function (cell, onRendered, success, cancel) {
               const input = document.createElement("input");
               input.type = "date";

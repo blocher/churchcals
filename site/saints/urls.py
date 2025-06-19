@@ -16,10 +16,11 @@ Including another URLconf
 
 from django.contrib import admin
 from django.urls import path
-from saints.views import welcome_view
+from saints.views import welcome_view, daily_view
 
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("", welcome_view, name="welcome"),
     path("year/<str:year>/", welcome_view, name="welcome_with_year"),
+    path("day/<str:date>/", daily_view, name="daily_view"),
 ]

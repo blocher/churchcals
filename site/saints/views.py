@@ -2,8 +2,9 @@ import datetime
 from collections import defaultdict
 from datetime import date, timedelta
 
-from django.shortcuts import render
-from saints.models import CalendarEvent
+from django.shortcuts import render, get_object_or_404
+from django.http import Http404
+from saints.models import CalendarEvent, Biography
 
 
 def first_sunday_of_advent(year):
@@ -84,6 +85,7 @@ def welcome_view(request, year=None):
 
         row = {
             "date": f"{day.strftime('%a')}<br><span style='font-size:1.1em;'><strong>{day.strftime('%b')} {day.strftime('%-d')}</strong><br>{day.strftime('%Y')}</span>",
+            "date_link": day.strftime('%Y-%m-%d'),  # Add date string for linking
             "catholic_1954": format_display(serialize_events(calendars["calendar_1954"].get(month_day, []))),
             "catholic_1962": format_display(serialize_events(calendars["calendar_1960"].get(month_day, []))),
             "current": format_display(serialize_events(calendars["calendar_current"].get(month_day, []))),
@@ -97,3 +99,82 @@ def welcome_view(request, year=None):
     print(rows[:-1])
 
     return render(request, "saints/welcome.html", {"rows": rows, "year": year})
+
+
+def daily_view(request, date):
+    """Display calendar events for a specific date across different calendars."""
+    try:
+        # Parse the date string (expected format: YYYY-MM-DD)
+        year, month, day = map(int, date.split('-'))
+        target_date = datetime.date(year, month, day)
+    except (ValueError, TypeError):
+        raise Http404("Invalid date format")
+    
+    # Handle calendar switching via POST
+    if request.method == 'POST':
+        selected_calendar = request.POST.get('selected_calendar')
+        if selected_calendar:
+            request.session['selected_calendar'] = selected_calendar
+    
+    # Get selected calendar from session, default to Catholic (Current)
+    selected_calendar = request.session.get('selected_calendar', 'current')
+    
+    # Define calendar mappings
+    calendar_options = {
+        'catholic_1954': 'Catholic (1954)',
+        'catholic_1962': 'Catholic (1962)', 
+        'current': 'Catholic (Current)',
+        'ordinariate': 'Catholic (Anglican Ordinariate)',
+        'acna': 'ACNA (2019)',
+        'tec': 'TEC (2024)'
+    }
+    
+    # Filter mapping for database queries
+    calendar_filters = {
+        'catholic_1954': {'calendar__icontains': '1954'},
+        'catholic_1962': {'calendar__icontains': '1960'},  # Note: 1962 uses 1960 in the code
+        'current': {'calendar__icontains': 'catholic'},
+        'ordinariate': {'calendar__icontains': 'ordinariate'},
+        'acna': {'calendar__icontains': 'acna'},
+        'tec': {'calendar__icontains': 'tec'}
+    }
+    
+    # Get events for this date
+    events = CalendarEvent.objects.filter(
+        date=target_date,
+        **calendar_filters.get(selected_calendar, calendar_filters['current'])
+    ).order_by('order', 'english_name')
+    
+    # Try to find biography information for each event
+    events_with_biographies = []
+    for event in events:
+        # Try to find a matching biography
+        biography = None
+        if event.saint_name:
+            biography = Biography.objects.filter(name__icontains=event.saint_name).first()
+        elif event.english_name:
+            # Try exact match first, then partial match
+            biography = Biography.objects.filter(name__iexact=event.english_name).first()
+            if not biography:
+                biography = Biography.objects.filter(name__icontains=event.english_name.split(',')[0]).first()
+        
+        events_with_biographies.append({
+            'event': event,
+            'biography': biography
+        })
+    
+    # Get navigation dates
+    prev_date = target_date - timedelta(days=1)
+    next_date = target_date + timedelta(days=1)
+    
+    context = {
+        'date': target_date,
+        'events': events,
+        'events_with_biographies': events_with_biographies,
+        'selected_calendar': selected_calendar,
+        'calendar_options': calendar_options,
+        'prev_date': prev_date,
+        'next_date': next_date,
+    }
+    
+    return render(request, "saints/daily.html", context)
