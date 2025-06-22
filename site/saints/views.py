@@ -2,10 +2,11 @@ import datetime
 from collections import defaultdict
 from datetime import date, timedelta
 
-from django.shortcuts import render, get_object_or_404, redirect
-from django.http import Http404
+from django.shortcuts import render, redirect
+from django.http import Http404, HttpResponseRedirect
+from django.urls import reverse
 from django.utils import timezone
-from saints.models import CalendarEvent, Biography
+from saints.models import CalendarEvent
 import calendar
 
 
@@ -49,7 +50,9 @@ def comparison_view(request, year=None):
         rows = []
         for i, e in enumerate(events):
             if i == 0:
-                rows.append(f"<strong>{e['name']}</strong> <small>({e['rank']})</small>")
+                rows.append(
+                    f"<strong>{e['name']}</strong> <small>({e['rank']})</small>"
+                )
             else:
                 rows.append(f"{e['name']} <small>({e['rank']})</small>")
         return "<br>".join(rows)
@@ -59,6 +62,32 @@ def comparison_view(request, year=None):
         for event in events_queryset:
             grouped[(event.month, event.day)].append(event)
         return grouped
+
+    # Get the target day for scrolling (if provided)
+    target_day = request.GET.get('day')
+    
+    # If target_day is provided, determine the correct liturgical year for that date
+    if target_day:
+        try:
+            target_date = datetime.datetime.strptime(
+                target_day, '%Y-%m-%d'
+            ).date()
+            # Determine the liturgical year for the target date
+            if has_advent_started(target_date):
+                target_liturgical_year = target_date.year
+            else:
+                target_liturgical_year = target_date.year - 1
+            
+            # If the target liturgical year is different from the requested year, redirect
+            if (year is None or 
+                int(year.split("-")[0]) != target_liturgical_year):
+                url = reverse('comparison_with_year', 
+                            kwargs={'year': target_liturgical_year})
+                url += f'?day={target_day}'
+                return HttpResponseRedirect(url)
+        except (ValueError, TypeError):
+            # If target_day is invalid, ignore it
+            target_day = None
 
     if year is None:
         year = date.today().year
@@ -72,14 +101,36 @@ def comparison_view(request, year=None):
     # Fetch and group all calendar events by (month, day)
     base_filter = {"date__range": [advent_1, advent_2]}
     calendars = {
-        "calendar_1954": group_events(CalendarEvent.objects.filter(**base_filter, calendar__icontains="1954")),
-        "calendar_1960": group_events(CalendarEvent.objects.filter(**base_filter, calendar__icontains="1960")),
-        "calendar_current": group_events(CalendarEvent.objects.filter(**base_filter, calendar__icontains="catholic")),
-        "calendar_ordinariate": group_events(
-            CalendarEvent.objects.filter(**base_filter, calendar__icontains="ordinariate")
+        "calendar_1954": group_events(
+            CalendarEvent.objects.filter(
+                **base_filter, calendar__icontains="1954"
+            )
         ),
-        "calendar_acna": group_events(CalendarEvent.objects.filter(**base_filter, calendar__icontains="acna")),
-        "calendar_tec": group_events(CalendarEvent.objects.filter(**base_filter, calendar__icontains="tec")),
+        "calendar_1960": group_events(
+            CalendarEvent.objects.filter(
+                **base_filter, calendar__icontains="1960"
+            )
+        ),
+        "calendar_current": group_events(
+            CalendarEvent.objects.filter(
+                **base_filter, calendar__icontains="catholic"
+            )
+        ),
+        "calendar_ordinariate": group_events(
+            CalendarEvent.objects.filter(
+                **base_filter, calendar__icontains="ordinariate"
+            )
+        ),
+        "calendar_acna": group_events(
+            CalendarEvent.objects.filter(
+                **base_filter, calendar__icontains="acna"
+            )
+        ),
+        "calendar_tec": group_events(
+            CalendarEvent.objects.filter(
+                **base_filter, calendar__icontains="tec"
+            )
+        ),
     }
 
     # Build rows as list-of-dictionaries for Tabulator
@@ -104,8 +155,6 @@ def comparison_view(request, year=None):
 
         rows.append(row)
 
-    # Get the target day for scrolling (if provided)
-    target_day = request.GET.get('day')
     today = date.today()
     
     return render(request, "saints/welcome.html", {"rows": rows, "year": year, "target_day": target_day, "today": today})

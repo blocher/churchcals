@@ -1,11 +1,20 @@
 #!/bin/sh
 
 echo "======Making Directory======"
-mkdir -p /var/www/api.dailyoffice2019.com/
-cd /var/www/api.dailyoffice2019.com/
+mkdir -p /var/www/saints.benlocher.com
+cd /var/www/saints.benlocher.com
 
 echo "======Checking out code======"
-git --work-tree=/var/www/api.dailyoffice2019.com --git-dir=/var/repo/api.dailyoffice2019.com/ checkout -f vue-test
+git --work-tree=/var/www/saints.benlocher.com --git-dir=/var/repo/saints.benlocher.com/ checkout -f master
+
+echo "======Setting File Ownership======"
+PROJECT_DIR="/var/www/saints.benlocher.com/site"
+sudo chown -R saints:saints $PROJECT_DIR
+sudo find $PROJECT_DIR -type d -exec chmod 755 {} \;
+sudo find $PROJECT_DIR -type f -exec chmod 644 {} \;
+sudo chmod +x $PROJECT_DIR/manage.py
+sudo chmod -R g+rx $PROJECT_DIR/staticfiles
+chmod 660 $PROJECT_DIR/db.sqlite3
 
 echo "======Making and activating venv======"
 sudo rm -rf env
@@ -13,29 +22,19 @@ python3.13 -m venv env
 . env/bin/activate
 cd site
 
-# echo "======Installing C Bindings======"
-# pip install wheel
-# CFLAGS="-Wno-narrowing" pip install cld2-cffi  --no-cache-dir
-
 echo "======Installing Requirements======"
 pip install -r requirements.txt --no-cache-dir
 
-# echo "======Installing Yarn Requirements and updating browserslist======"
-# rm -rf node_modules
-# npm install
-# yes | npx update-browserslist-db@latest
+echo "======Installing Yarn Requirements and updating browserslist======"
+rm -rf node_modules
+npm install
 
 echo "======Migrating Database======"
 python3.13 manage.py migrate --no-input
 
 echo "======Collecting Static Files======"
-# enable corepack
-#mkdir -p static
-#npx webpack
 python3.13 manage.py collectstatic --noinput --clear
-
-echo "======Clearing Memcached======"
-echo "flush_all" | nc -q 2 localhost 11211
+sudo chmod -R g+rx $PROJECT_DIR/staticfiles
 
 echo "======Clearing Python Cache======"
 sudo find . -name "*.pyc" -exec rm -f {} \;
@@ -46,13 +45,7 @@ systemctl stop dailyoffice
 systemctl start dailyoffice
 # systemctl status dailyoffice
 
-echo "======Reclearing Memcached======"
-echo "flush_all" | nc -q 2 localhost 11211
-
 echo "======Clearing Python Cache and Recompiling======"
 sudo find . -name "*.pyc" -exec rm -f {} \;
 sudo find . -name "*.pyo" -exec rm -f {} \;
 python -m compileall .
-
-echo "======Enabling Kronos cron-tasks======"
-python3.13 manage.py installtasks
