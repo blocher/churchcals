@@ -263,9 +263,19 @@
                 font-size: 0.8rem;
             }
 
+            .day-number {
+                position: relative;
+                top: 0;
+                left: 0;
+                display: block;
+                text-align: center;
+                margin-bottom: 4px;
+                font-size: 0.9rem;
+            }
+
             .events-in-day {
-                margin-top: 20px;
-                max-height: 70px;
+                margin-top: 0;
+                max-height: 60px;
                 padding: 0 4px 4px;
                 overflow: hidden;
             }
@@ -415,20 +425,10 @@
         }
 
         function switchCalendar(calendar) {
-            // Send AJAX request to update session
-            fetch(window.location.pathname, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                    'X-CSRFToken': getCookie('csrftoken')
-                },
-                body: 'selected_calendar=' + calendar
-            }).then(() => {
-                window.location.reload();
-            }).catch(error => {
-                console.error('Error switching calendar:', error);
-                window.location.reload();
-            });
+            // Update URL with calendar parameter and reload
+            const url = new URL(window.location);
+            url.searchParams.set('calendar', calendar);
+            window.location.href = url.toString();
         }
 
         function goToDay(year, month, day) {
