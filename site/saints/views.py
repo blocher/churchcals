@@ -104,8 +104,6 @@ def comparison_view(request, year=None):
 
         rows.append(row)
 
-    print(rows[:-1])
-
     # Get the target day for scrolling (if provided)
     target_day = request.GET.get('day')
     today = date.today()

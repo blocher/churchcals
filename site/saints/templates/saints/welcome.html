@@ -228,6 +228,38 @@
       .tabulator-cell[tabulator-field="date"]:hover {
         background-color: #f0f4ff !important;
       }
+
+      /* Scroll to today button styling */
+      #scroll-to-today-container {
+        display: flex;
+        justify-content: center;
+        margin-bottom: 1rem;
+      }
+
+      #scroll-to-today-btn {
+        background: #2563eb;
+        color: white;
+        border: none;
+        border-radius: 0.5rem;
+        padding: 0.75rem 1.5rem;
+        font-size: 0.95rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        box-shadow: 0 2px 4px rgba(37, 99, 235, 0.2);
+        font-family: "Inter", sans-serif;
+      }
+
+      #scroll-to-today-btn:hover {
+        background: #1d4ed8;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 8px rgba(37, 99, 235, 0.3);
+      }
+
+      #scroll-to-today-btn:active {
+        transform: translateY(0);
+        box-shadow: 0 2px 4px rgba(37, 99, 235, 0.2);
+      }
         </style>
     </head>
     <body>
@@ -269,6 +301,11 @@
                 <option value="2035" {% if year == 2035 %}selected{% endif %}>2035–2036</option>
             </select>
         </div>
+        <div id="scroll-to-today-container">
+            <button id="scroll-to-today-btn" type="button">
+                📅 Scroll to Today
+            </button>
+        </div>
         <script>
       function navigateToYear() {
         const yearRange = document.getElementById("liturgical-year").value;
@@ -290,7 +327,7 @@
                     Catholic (Current)
                 </label>
                 <label>
-                    <input type="checkbox" class="column-toggle" value="current" checked />
+                    <input type="checkbox" class="column-toggle" value="ordinariate" checked />
                     Catholic (Anglican Ordinariate)
                 </label>
                 <label>
@@ -498,6 +535,52 @@
           }, 500);
       });
       {% endif %}
+
+      // Scroll to today button functionality
+      document.getElementById('scroll-to-today-btn').addEventListener('click', function() {
+        const today = new Date();
+        const currentLiturgicalYear = getCurrentLiturgicalYear(today);
+        const currentPageYear = {{ year }};
+        
+        // If we're not in the correct liturgical year, navigate to it
+        if (currentLiturgicalYear !== currentPageYear) {
+          window.location.href = `/comparison/${currentLiturgicalYear}/`;
+          return;
+        }
+        
+        // If we're in the correct year, scroll to today
+        const todayStr = today.toISOString().split('T')[0]; // YYYY-MM-DD format
+        const rows = table.getRows();
+        rows.forEach(function(row) {
+          const rowData = row.getData();
+          if (rowData.date_link === todayStr) {
+            table.scrollToRow(row, "center", false);
+            return;
+          }
+        });
+      });
+
+      // Function to determine current liturgical year based on date
+      function getCurrentLiturgicalYear(date) {
+        const year = date.getFullYear();
+        const adventStart = getFirstSundayOfAdvent(year);
+        
+        if (date >= adventStart) {
+          return year;
+        } else {
+          return year - 1;
+        }
+      }
+
+      // Function to calculate First Sunday of Advent for a given year
+      function getFirstSundayOfAdvent(year) {
+        const christmas = new Date(year, 11, 25); // December 25
+        const weekday = christmas.getDay(); // 0 = Sunday, 6 = Saturday
+        const daysToSubtract = (weekday === 0 ? 7 : weekday) + 21; // 4th Sunday before
+        const adventStart = new Date(christmas);
+        adventStart.setDate(christmas.getDate() - daysToSubtract);
+        return adventStart;
+      }
         </script>
     </body>
 </html>
