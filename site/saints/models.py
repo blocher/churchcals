@@ -172,6 +172,7 @@ class CalendarEvent(models.Model):
     calendar = models.CharField(max_length=255, blank=True, null=True)
     subcalendar = models.CharField(max_length=255, blank=True, null=True)
     season = models.CharField(max_length=255, blank=True, null=True)
+    biography = models.ForeignKey('Biography', null=True, blank=True, on_delete=models.SET_NULL, related_name='calendar_events')
 
     def save(self, *args, **kwargs):
         if self.year and self.month and self.day and not self.date:
@@ -190,6 +191,9 @@ class Biography(BaseModel):
     name = models.CharField(max_length=512)
     religion = models.CharField(max_length=64)
     calendar = models.CharField(max_length=64)
+
+    def __str__(self):
+        return f"{self.name} ({self.religion})"
 
 
 class ShortDescriptionsModel(models.Model):
@@ -284,3 +288,10 @@ class ImageModel(models.Model):
     author = models.CharField(max_length=256, null=True, blank=True)
     date = models.CharField(max_length=128, null=True, blank=True)
     order = models.PositiveIntegerField(default=0)
+
+
+class FeastDescriptionModel(models.Model):
+    biography = models.OneToOneField(Biography, on_delete=models.CASCADE, related_name="feast_description")
+    feast_description = models.TextField()
+    citations = models.ManyToManyField(HagiographyCitationModel, blank=True, related_name="feast_descriptions")
+

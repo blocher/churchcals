@@ -159,7 +159,7 @@ def fetch_ordinariate_calendar(calendar, year):
 
 def run():
     calendars = [
-        ("ordinarate", "https://universalis.com/usa.ordinariate.thursday/calendar.htm?year="),
+        ("ordinariate", "https://universalis.com/usa.ordinariate.thursday/calendar.htm?year="),
         ("catholic", "https://universalis.com/usa.thursday/calendar.htm?year="),
     ]
     for calendar in calendars:

@@ -72,6 +72,12 @@ def collect_bios():
         flat=True).distinct())
     print(len(traditional))
 
+    for traditional_item in traditional:
+        try:
+            generate_bio(traditional_item, "traditional", "traditional")
+        except Exception as e:
+            print(e)
+
     catholic = (CalendarEvent.objects.filter(
         calendar__in=["catholic", ]).exclude(
         english_rank__in=["Feria", "Sunday"]).values_list(
@@ -80,8 +86,10 @@ def collect_bios():
     print(len(catholic))
 
     for catholic_item in catholic:
-        generate_bio(catholic_item, "catholic", "catholic")
-        return
+        try:
+            generate_bio(catholic_item, "catholic", "catholic")
+        except Exception as e:
+            print(e)
 
     ordinariate = (CalendarEvent.objects.filter(
         calendar__in=["ordinariate", ]).exclude(
@@ -89,6 +97,12 @@ def collect_bios():
         "english_name",
         flat=True).distinct())
     print(len(ordinariate))
+
+    for ordinariate_item in ordinariate:
+        try:
+            generate_bio(ordinariate_item, "ordinariate", "ordinariate")
+        except Exception as e:
+            print(e)
 
     acnas = (CalendarEvent.objects.filter(
         calendar__in=["ACNA_BCP2019", ]).exclude(
@@ -98,6 +112,12 @@ def collect_bios():
         flat=True).order_by("english_name").distinct())
     print(len(acnas))
 
+    for acna_item in acnas:
+        try:
+            generate_bio(acna_item, "acna", "ACNA_BCP2019")
+        except Exception as e:
+            print(e)
+
     tecs = (CalendarEvent.objects.filter(
         calendar__in=["TEC_BCP1979_LFF2024", ]).exclude(
         english_rank__in=["Advent Feria", "Easter Feria", "Feria", "Lent Feria", "Rogation Day", "Ember Day",
@@ -105,6 +125,12 @@ def collect_bios():
         "english_name",
         flat=True).order_by("english_name").distinct())
     print(len(tecs))
+
+    for tecs_item in tecs:
+        try:
+            generate_bio(tecs_item, "tec", "TEC_BCP1979_LFF2024")
+        except Exception as e:
+            print(e)
 
 
 class BibleVerse(BaseModel):
@@ -136,7 +162,7 @@ class Foods(BaseModel):
 class Tradition(BaseModel):
     tradition: str = Field(description="The tradition or custom associated with the saint or feast day")
     country_of_origin: str | None = Field(
-        description="The country, region, or location of origin of the tradition or custom, or None if it is universal or broadly applicable")
+        description="The country, region, or location of origin of the tradition or custom, or None if it is universal or broadly applicable. Do not include if it is broadly applicable to the whole church.")
     reason_associated_with_saint: str | None = Field(
         description="The reason the tradition or custom is associated with the saint or feast day, or None if there is no specific reason")
 
@@ -148,7 +174,7 @@ class Traditions(BaseModel):
 
 class Quote(BaseModel):
     quote: str = Field(
-        description="The quote by or about the saint, word for word as it was originally written or spoken without any modifications, except to be literally translated into English if needed.")
+        description="The quote by or about the saint or feast day, word for word as it was originally written or spoken without any modifications, except to be literally translated into English if needed.")
     person: str = Field(description="The person who made this quote)")
     date: str = Field(
         description="The exact date if known (with fallbacks to the year, century, or time-period, if not known) when the quote was made in a publishable, human-readable format")
@@ -176,6 +202,11 @@ class Hagiography(BaseModel):
     citations: List[HagiographyCitation] | None = Field(
         description="List of citations for the hagiography, if available, or None if not applicable")
 
+class FeastDescription(BaseModel):
+    feast_description: str = Field(
+        description="An engaging and informative description of the feast that is at least 6 paragraphs and 600 words and is rather detailed. Include just the text—no intro text or other text. It should be an engaging description of what the feast is about, what its history is, and its meaning.")
+    citations: List[HagiographyCitation] | None = Field(
+        description="List of citations for the hagiography, if available, or None if not applicable")
 
 class Legend(BaseModel):
     legend: str = Field(
@@ -183,7 +214,6 @@ class Legend(BaseModel):
     title: str = Field(description="A short, creative title for the legend or story")
     citations: List[HagiographyCitation] | None = Field(
         description="List of citations for the legend, if available, or None if not applicable")
-
 
 class BulletPoints(BaseModel):
     bullet_points: List[str] = Field(
@@ -205,9 +235,11 @@ class Writing(BaseModel):
 
 class Writings(BaseModel):
     writing_by_saint: Writing | None = Field(
-        description="A representative writing by the saint that best articulates their beliefs, teachings, or contributions to Christianity. This should be a word-for-word original text of the writing (literally translated into English if necessary). Aim for 300-4000 words.")
+        description="A representative writing by the saint that best articulates their beliefs, teachings, or contributions to Christianity. This should be a word-for-word original text of the writing (literally translated into English if necessary). Aim for 300-4000 words. If this is for a feast that isn't of a person, return None.")
     writing_about_saint: Writing | None = Field(
-        description="A representative writing about the saint or his/her contribution by a different author the saint that best articulates their beliefs, teachings, or contributions to Christianity. This should be a word-for-word original text of the writing (literally translated into English if necessary). Aim for 300-4000 words.")
+        description="A representative writing about the saint or his/her contribution by a different author the saint that best articulates their beliefs, teachings, or contributions to Christianity. This should be a word-for-word original text of the writing (literally translated into English if necessary). Aim for 300-4000 words.  If this is for a feast that isn't of a person, return None.")
+    writing_about_feast: Writing | None = Field(
+        description="A representative writing about the saint or his/her contribution by a different author the saint that best articulates their beliefs, teachings, or contributions to Christianity. This should be a word-for-word original text of the writing (literally translated into English if necessary). Aim for 300-4000 words.  If this is for a feast that is of a person, return None.")
 
 
 class Image(BaseModel):
@@ -224,11 +256,17 @@ class Images(BaseModel):
 
 def generate_bio(person: str, religion: str, calendar: str):
 
+    print(f"Starting { person } in { calendar } for { religion }")
     event = None
     year = 2025
     while event is None:
-        event = CalendarEvent.objects.filter(english_name=person, calendar=calendar, date__year=2025).first()
+        if calendar == "traditional":
+            event = CalendarEvent.objects.filter(english_name=person, calendar__in=["Rubrics 1960 - 1960", "Divino Afflatu - 1954"], date__year=year).first()
+        else:
+            event = CalendarEvent.objects.filter(english_name=person, calendar=calendar, date__year=year).first()
         year = year + 1
+        if year == 2037:
+            year = 2020
 
     feast_prompt = f"For all prompts, we will be discussing the feast day of {person} which was/will be commemorated on {event.date} in the {calendar} calendar. Make sure to identify the correct feast or person in cases where there are multiple saints with the same name."
 
@@ -264,64 +302,120 @@ def generate_bio(person: str, religion: str, calendar: str):
 
     # Define the system instruction
     system_instruction = agent_string[religion]
-    system_instruction = f"{system_instruction} You are an expert in the life and contributions of saints in Christianity, especially from the perspective of someone in {religion_string[religion]}. You are based in the United States of America, but have a global outlook and care about traditions from around the world."
+    system_instruction = f"{system_instruction} You are an expert in the life and contributions of saints in Christianity, from the perspective of someone in {religion_string[religion]}. You are based in the United States of America, but have a global outlook and care about traditions from both the U.S.A. and around the world."
     system_instruction = f"{system_instruction} { feast_prompt }"
-    # Define the prompts
-    prompts = [
-        (
-            "short_descriptions",
-            ShortDescriptions,
-            f"Provide two very short descriptions of who {person} is, one that is a single sentence long and one that is a single paragraph long. Include what the person is known for and their role in the Christian life and church, especially from the perspective of someone in {religion_string[religion]}. You don't need to include the name of the religion (you can assume the reader is {religion_string[religion]}).",
-        ),
-        (
-            "quotes",
-            Quote,
-            f"List one quote either by or about {person} that best represents them and their importance to Christianity.",
-        ),
-        (
-            "verse",
-            BibleVerse,
-            f"What is one Bible verse in {bible_version[religion]} that best represents the life, work, and beliefs of {person}? Include the exact quote with book, chapter, and verse, and version of the Bible.",
-        ),
-        (
-            "ai_hagiography",
-            Hagiography,
-            f"Write a hagiographical biography of {person} that is at least 6 paragraphs and 600 words and is rather detailed. Include just the biography—no intro text or other text. It should be an engaging narrative of the person's life and why they are important in the Christian tradition, especially from the perspective of someone in {religion_string[religion]}.",
-        ),
-        (
-            "ai_legend",
-            Legend,
-            f"Tell a story, anecdote, or pious legend from the life of {person} that is interesting and revealing of their character and faith. Include just the title and story—no intro text or other text. Tell it as a storyteller with a narrative, dramatic style.",
-        ),
-        (
-            "ai_bullet_points",
-            BulletPoints,
-            f"Summarize {person}'s life and contributions to the Christian life in 4-6 short bullet points. Include just the bullet points—no intro text or other text. Include important events, contributions, and beliefs that are significant in the Christian tradition, especially from the perspective of someone in {religion_string[religion]}.",
-        ),
-        (
-            "ai_traditions",
-            Traditions,
-            f"Include a bulleted list of interesting pious or popular traditions for the feast day of {person} from the U.S. and around the world with which country or region they are from including official and unofficial / popular traditions in the church, town, and home. If there is nothing notable, return None. Do not use the first person ever. Include just the bullet points—no intro text or other text.",
-        ),
-        (
-            "ai_foods",
-            Foods,
-            f"Include a bulleted list of interesting foods or culinary habits for the feast day of {person} from around the world with which country they are from. If there is nothing notable, return None. Do not use the first person ever. Include just the bullet points—no intro text or other text.",
-        ),
-        (
-            "ai_writings",
-            Writings,
-            f"Include two representative writings by {person} that best articulate their beliefs, teachings, or contributions to Christianity (one by the saint, if there is one, and one about the saint, if there is one). This should be a word-for-word original text of the writing (literally translated into English if necessary). Aim for 300-4000 words. Include just the writing—no intro text or other text.",
-        ),
-        (
-            "images",
-            Images,
-            f"Return 3-5 images of {person} that are in the public domain or have a Creative Commons license. Include the URL to the image, the title of the image, and the author of the image. Double check that the URL is valid, accessible, and is a direct link to the image. If there are no images, return none.",
-        ),
-    ]
 
+    if not event.is_person:
+        prompts = [
+            (
+                "short_descriptions",
+                ShortDescriptions,
+                f"Provide two very short descriptions of what the feast {person} is about, one that is a single sentence long and one that is a single paragraph long. Include what role the feast plays in the church calendar and salvation history. You don't need to include the name of the religion.",
+            ),
+            (
+                "quotes",
+                Quote,
+                f"List one quote either about the feast {person} that best is profound or inspiring.",
+            ),
+            (
+                "verse",
+                BibleVerse,
+                f"What is one Bible verse in {bible_version[religion]} that best represents this feast {person}? Include the exact quote with book, chapter, and verse, and version of the Bible.",
+            ),
+            (
+                "ai_feast_description",
+                FeastDescription,
+                f"Write an engaging and informative description of the feast {person} that is at least 6 paragraphs and 600 words and is rather detailed. Include just the text—no intro text or other text. It should be an engaging description of what the feast is about, what its history is, and its meaning.",
+            ),
+            (
+                "ai_legend",
+                Legend,
+                f"Tell a story, anecdote, or pious legend from the life of {person} that is interesting and revealing of their character and faith. Include just the title and story—no intro text or other text. Tell it as a storyteller with a narrative, dramatic style.",
+            ),
+            (
+                "ai_bullet_points",
+                BulletPoints,
+                f"Summarize important facts about the feast {person} in 4-6 short bullet points. Include just the bullet points—no intro text or other text. Include important beliefts, descriptions or history that are significant in the Christian tradition.",
+            ),
+            (
+                "ai_traditions",
+                Traditions,
+                f"Include a bulleted list of interesting pious or popular traditions for the feast day of {person} from the U.S. and around the world with which country or region they are from including official and unofficial / popular traditions in the church, town, and home. If there is nothing notable, return None. Do not use the first person ever. Include just the bullet points—no intro text or other text.",
+            ),
+            (
+                "ai_foods",
+                Foods,
+                f"Include a bulleted list of interesting foods or culinary habits for the feast day of {person} from around the world with which country they are from. If there is nothing notable, return None. Do not use the first person ever. Include just the bullet points—no intro text or other text.",
+            ),
+            (
+                "ai_writings",
+                Writings,
+                f"Include a representative writing about the feast {person} that best articulate its meaning and profundity. This should be a word-for-word original text of the writing (literally translated into English if necessary). Aim for 300-4000 words. Include just the writing—no intro text or other text.",
+            ),
+            (
+                "images",
+                Images,
+                f"Return 3-5 images of {person} that are in the public domain or have a Creative Commons license. Include the URL to the image, the title of the image, and the author of the image. Double check that the URL is valid, accessible, and is a direct link to the image. If there are no images, return none.",
+            ),
+        ]
+    else:
+        prompts = [
+            (
+                "short_descriptions",
+                ShortDescriptions,
+                f"Provide two very short descriptions of who {person} is, one that is a single sentence long and one that is a single paragraph long. Include what the person is known for and their role in the Christian life and church. You don't need to include the name of the religion.",
+            ),
+            (
+                "quotes",
+                Quote,
+                f"List one quote either by or about {person} that best represents them and their importance to Christianity.",
+            ),
+            (
+                "verse",
+                BibleVerse,
+                f"What is one Bible verse in {bible_version[religion]} that best represents the life, work, and beliefs of {person}? Include the exact quote with book, chapter, and verse, and version of the Bible.",
+            ),
+            (
+                "ai_hagiography",
+                Hagiography,
+                f"Write a hagiographical biography of {person} that is at least 6 paragraphs and 600 words and is rather detailed. Include just the biography—no intro text or other text. It should be an engaging narrative of the person's life and why they are important in the Christian tradition.",
+            ),
+            (
+                "ai_legend",
+                Legend,
+                f"Tell a story, anecdote, or pious legend from the life of {person} that is interesting and revealing of their character and faith. Include just the title and story—no intro text or other text. Tell it as a storyteller with a narrative, dramatic style.",
+            ),
+            (
+                "ai_bullet_points",
+                BulletPoints,
+                f"Summarize {person}'s life and contributions to the Christian life in 4-6 short bullet points. Include just the bullet points—no intro text or other text. Include important events, contributions, and beliefs that are significant in the Christian tradition.",
+            ),
+            (
+                "ai_traditions",
+                Traditions,
+                f"Include a bulleted list of interesting pious or popular traditions for the feast day of {person} from the U.S. and around the world with which country or region they are from including official and unofficial / popular traditions in the church, town, and home. If there is nothing notable, return None. Do not use the first person ever. Include just the bullet points—no intro text or other text.",
+            ),
+            (
+                "ai_foods",
+                Foods,
+                f"Include a bulleted list of interesting foods or culinary habits for the feast day of {person} from around the world with which country they are from. If there is nothing notable, return None. Do not use the first person ever. Include just the bullet points—no intro text or other text.",
+            ),
+            (
+                "ai_writings",
+                Writings,
+                f"Include two representative writings by {person} that best articulate their beliefs, teachings, or contributions to Christianity (one by the saint, if there is one, and one about the saint, if there is one). This should be a word-for-word original text of the writing (literally translated into English if necessary). Aim for 300-4000 words. Include just the writing—no intro text or other text.",
+            ),
+            (
+                "images",
+                Images,
+                f"Return 3-5 images of {person} that are in the public domain or have a Creative Commons license. Include the URL to the image, the title of the image, and the author of the image. Double check that the URL is valid, accessible, and is a direct link to the image. If there are no images, return none.",
+            ),
+        ]
     # Find existing Biography or create a new one
     biography = Biography.objects.filter(name=person, religion=religion).first()
+    if biography:
+        print("Already saved")
+        return
     if biography:
         # Delete related objects (OneToOne and ForeignKey relationships)
         if hasattr(biography, 'short_descriptions'):
@@ -334,6 +428,8 @@ def generate_bio(person: str, religion: str, calendar: str):
             biography.hagiography.delete()
         if hasattr(biography, 'legend'):
             biography.legend.delete()
+        if hasattr(biography, 'feast_description') and biography.feast_description.pk is not None:
+            biography.feast_description.delete()
         if hasattr(biography, 'bullet_points'):
             biography.bullet_points.delete()
         biography.traditions.all().delete()
@@ -347,6 +443,12 @@ def generate_bio(person: str, religion: str, calendar: str):
         biography.save()
     else:
         biography = Biography.objects.create(name=person, religion=religion, calendar=calendar)
+
+    # Associate all matching CalendarEvents with this Biography
+    if calendar == "traditional":
+        CalendarEvent.objects.filter(english_name=person, calendar__in=["Rubrics 1960 - 1960", "Divino Afflatu - 1954"]).update(biography=biography)
+    else:
+        CalendarEvent.objects.filter(english_name=person, calendar=calendar).update(biography=biography)
 
     conversation_history = []
     for p_name, p_model, p_text in prompts:
@@ -409,121 +511,150 @@ def generate_bio(person: str, religion: str, calendar: str):
         if p_name == "short_descriptions":
             ShortDescriptionsModel.objects.create(
                 biography=biography,
-                one_sentence_description=completion_result.one_sentence_description,
-                one_paragraph_description=completion_result.one_paragraph_description,
+                one_sentence_description=getattr(completion_result, 'one_sentence_description', ""),
+                one_paragraph_description=getattr(completion_result, 'one_paragraph_description', ""),
             )
         elif p_name == "quotes":
             QuoteModel.objects.create(
                 biography=biography,
-                quote=completion_result.quote,
-                person=completion_result.person,
-                date=completion_result.date,
+                quote=getattr(completion_result, 'quote', ""),
+                person=getattr(completion_result, 'person', ""),
+                date=getattr(completion_result, 'date', ""),
             )
         elif p_name == "verse":
             BibleVerseModel.objects.create(
                 biography=biography,
-                citation=completion_result.citation,
-                text=completion_result.text,
-                bible_version_abbreviation=completion_result.bible_version_abbreviation,
-                bible_version=completion_result.bible_version,
-                bible_version_year=completion_result.bible_version_year,
+                citation=getattr(completion_result, 'citation', ""),
+                text=getattr(completion_result, 'text', ""),
+                bible_version_abbreviation=getattr(completion_result, 'bible_version_abbreviation', ""),
+                bible_version=getattr(completion_result, 'bible_version', ""),
+                bible_version_year=getattr(completion_result, 'bible_version_year', ""),
             )
         elif p_name == "ai_hagiography":
             hagiography_model = HagiographyModel.objects.create(
                 biography=biography,
-                hagiography=completion_result.hagiography,
+                hagiography=getattr(completion_result, 'hagiography', ""),
             )
-            if completion_result.citations:
+            if getattr(completion_result, 'citations', None):
                 for c in completion_result.citations:
                     citation_obj, _ = HagiographyCitationModel.objects.get_or_create(
-                        citation=c.citation,
-                        url=c.url,
-                        date_accessed=c.date_accessed,
-                        title=c.title,
+                        citation=getattr(c, 'citation', ""),
+                        url=getattr(c, 'url', None),
+                        date_accessed=getattr(c, 'date_accessed', None),
+                        title=getattr(c, 'title', None),
                     )
                     hagiography_model.citations.add(citation_obj)
+        elif p_name == "ai_feast_description":
+            from saints.models import FeastDescriptionModel
+            # Delete existing FeastDescriptionModel if it exists
+            if hasattr(biography, 'feast_description') and biography.feast_description.pk is not None:
+                biography.feast_description.delete()
+            feast_description_model = FeastDescriptionModel.objects.create(
+                biography=biography,
+                feast_description=getattr(completion_result, 'feast_description', ""),
+            )
+            if getattr(completion_result, 'citations', None):
+                for c in completion_result.citations:
+                    citation_obj, _ = HagiographyCitationModel.objects.get_or_create(
+                        citation=getattr(c, 'citation', ""),
+                        url=getattr(c, 'url', None),
+                        date_accessed=getattr(c, 'date_accessed', None),
+                        title=getattr(c, 'title', None),
+                    )
+                    feast_description_model.citations.add(citation_obj)
         elif p_name == "ai_legend":
             legend_model = LegendModel.objects.create(
                 biography=biography,
-                legend=completion_result.legend,
-                title=completion_result.title,
+                legend=getattr(completion_result, 'legend', ""),
+                title=getattr(completion_result, 'title', ""),
             )
-            if completion_result.citations:
+            if getattr(completion_result, 'citations', None):
                 for c in completion_result.citations:
                     citation_obj, _ = HagiographyCitationModel.objects.get_or_create(
-                        citation=c.citation,
-                        url=c.url,
-                        date_accessed=c.date_accessed,
-                        title=c.title,
+                        citation=getattr(c, 'citation', ""),
+                        url=getattr(c, 'url', None),
+                        date_accessed=getattr(c, 'date_accessed', None),
+                        title=getattr(c, 'title', None),
                     )
                     legend_model.citations.add(citation_obj)
         elif p_name == "ai_bullet_points":
             bullet_points_model = BulletPointsModel.objects.create(biography=biography)
-            if completion_result.bullet_points:
+            if getattr(completion_result, 'bullet_points', None):
                 for i, bp in enumerate(completion_result.bullet_points):
-                    BulletPoint.objects.create(bullet_points_model=bullet_points_model, text=bp, order=i  )
-            if completion_result.citations:
+                    BulletPoint.objects.create(bullet_points_model=bullet_points_model, text=bp, order=i)
+            if getattr(completion_result, 'citations', None):
                 for c in completion_result.citations:
                     citation_obj, _ = HagiographyCitationModel.objects.get_or_create(
-                        citation=c.citation,
-                        url=c.url,
-                        date_accessed=c.date_accessed,
-                        title=c.title,
+                        citation=getattr(c, 'citation', ""),
+                        url=getattr(c, 'url', None),
+                        date_accessed=getattr(c, 'date_accessed', None),
+                        title=getattr(c, 'title', None),
                     )
                     bullet_points_model.citations.add(citation_obj)
         elif p_name == "ai_traditions":
-            if completion_result.traditions:
+            if getattr(completion_result, 'traditions', None):
                 for idx, t in enumerate(completion_result.traditions):
                     TraditionModel.objects.create(
                         biography=biography,
-                        tradition=t.tradition,
-                        country_of_origin=t.country_of_origin,
-                        reason_associated_with_saint=t.reason_associated_with_saint,
+                        tradition=getattr(t, 'tradition', ""),
+                        country_of_origin=getattr(t, 'country_of_origin', None),
+                        reason_associated_with_saint=getattr(t, 'reason_associated_with_saint', None),
                         order=idx,
                     )
         elif p_name == "ai_foods":
-            if completion_result.foods:
+            if getattr(completion_result, 'foods', None):
                 for idx, f in enumerate(completion_result.foods):
                     FoodModel.objects.create(
                         biography=biography,
-                        food_name=f.food_name,
-                        description=f.description,
-                        country_of_origin=f.country_of_origin,
-                        reason_associated_with_saint=f.reason_associated_with_saint,
+                        food_name=getattr(f, 'food_name', ""),
+                        description=getattr(f, 'description', ""),
+                        country_of_origin=getattr(f, 'country_of_origin', None),
+                        reason_associated_with_saint=getattr(f, 'reason_associated_with_saint', None),
                         order=idx,
                     )
         elif p_name == "ai_writings":
-            if completion_result.writing_by_saint:
+            if getattr(completion_result, 'writing_by_saint', None):
                 WritingModel.objects.create(
                     biography=biography,
-                    writing=completion_result.writing_by_saint.writing,
-                    date=completion_result.writing_by_saint.date,
-                    title=completion_result.writing_by_saint.title,
-                    url=completion_result.writing_by_saint.url,
-                    author=completion_result.writing_by_saint.author,
+                    writing=getattr(completion_result.writing_by_saint, 'writing', ""),
+                    date=getattr(completion_result.writing_by_saint, 'date', ""),
+                    title=getattr(completion_result.writing_by_saint, 'title', ""),
+                    url=getattr(completion_result.writing_by_saint, 'url', None),
+                    author=getattr(completion_result.writing_by_saint, 'author', None),
                     type="by",
                     order=0,
                 )
-            if completion_result.writing_about_saint:
+            if getattr(completion_result, 'writing_about_saint', None):
                 WritingModel.objects.create(
                     biography=biography,
-                    writing=completion_result.writing_about_saint.writing,
-                    date=completion_result.writing_about_saint.date,
-                    title=completion_result.writing_about_saint.title,
-                    url=completion_result.writing_about_saint.url,
-                    author=completion_result.writing_about_saint.author,
+                    writing=getattr(completion_result.writing_about_saint, 'writing', ""),
+                    date=getattr(completion_result.writing_about_saint, 'date', ""),
+                    title=getattr(completion_result.writing_about_saint, 'title', ""),
+                    url=getattr(completion_result.writing_about_saint, 'url', None),
+                    author=getattr(completion_result.writing_about_saint, 'author', None),
                     type="about",
                     order=1,
                 )
+            if getattr(completion_result, 'writing_about_feast', None):
+                WritingModel.objects.create(
+                    biography=biography,
+                    writing=getattr(completion_result.writing_about_feast, 'writing', ""),
+                    date=getattr(completion_result.writing_about_feast, 'date', ""),
+                    title=getattr(completion_result.writing_about_feast, 'title', ""),
+                    url=getattr(completion_result.writing_about_feast, 'url', None),
+                    author=getattr(completion_result.writing_about_feast, 'author', None),
+                    type="about",
+                    order=2,
+                )
         elif p_name == "images":
-            if completion_result.images:
+            if getattr(completion_result, 'images', None):
                 for idx, img in enumerate(completion_result.images):
                     ImageModel.objects.create(
                         biography=biography,
-                        url=img.url,
-                        title=img.title,
-                        author=img.author,
-                        date=img.date,
+                        url=getattr(img, 'url', ""),
+                        title=getattr(img, 'title', ""),
+                        author=getattr(img, 'author', None),
+                        date=getattr(img, 'date', None),
                         order=idx,
                     )
 
@@ -533,19 +664,21 @@ def generate_bio(person: str, religion: str, calendar: str):
 
         # Print the completion result
         print(f"=== {p_name} ===")
-        print("Completion result:", completion_result)
+        # print("Completion result:", completion_result)
 
         # Handle citations if available
         citation_metadata = response.candidates[0].citation_metadata
-        print("Citations (Annotations):")
+        # print("Citations (Annotations):")
         if citation_metadata and getattr(citation_metadata, 'citations', None):
             for source in citation_metadata.citations:
-                print(f"  - Start Index: {getattr(source, 'start_index', 'N/A')}, "
-                      f"End Index: {getattr(source, 'end_index', 'N/A')}, "
-                      f"URI: {getattr(source, 'uri', 'N/A')}, "
-                      f"License: {getattr(source, 'license', 'N/A')}")
+                pass
+                # print(f"  - Start Index: {getattr(source, 'start_index', 'N/A')}, "
+                #       f"End Index: {getattr(source, 'end_index', 'N/A')}, "
+                #       f"URI: {getattr(source, 'uri', 'N/A')}, "
+                #       f"License: {getattr(source, 'license', 'N/A')}")
         else:
-            print("  None")
+            pass
+            # print("  None")
 
 
 def clean_calendar_event_names():

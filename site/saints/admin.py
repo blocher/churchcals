@@ -14,6 +14,7 @@ from .models import (
     FoodModel,
     WritingModel,
     ImageModel,
+    FeastDescriptionModel,  # Added import
 )
 
 class ShortDescriptionsInline(nested_admin.NestedStackedInline):
@@ -59,18 +60,28 @@ class BulletPointsNestedInline(nested_admin.NestedStackedInline):
 class TraditionInline(nested_admin.NestedTabularInline):
     model = TraditionModel
     extra = 0
+    ordering = ["order"]
 
 class FoodInline(nested_admin.NestedTabularInline):
     model = FoodModel
     extra = 0
+    ordering = ["order"]
 
 class WritingInline(nested_admin.NestedTabularInline):
     model = WritingModel
     extra = 0
+    ordering = ["order"]
 
 class ImageInline(nested_admin.NestedTabularInline):
     model = ImageModel
     extra = 0
+    ordering = ["order"]
+
+class FeastDescriptionInline(nested_admin.NestedStackedInline):
+    model = FeastDescriptionModel
+    can_delete = False
+    extra = 0
+    filter_horizontal = ('citations',)
 
 class BiographyAdmin(nested_admin.NestedModelAdmin):
     inlines = [
@@ -84,9 +95,8 @@ class BiographyAdmin(nested_admin.NestedModelAdmin):
         FoodInline,
         WritingInline,
         ImageInline,
+        FeastDescriptionInline,
     ]
-    list_display = ("name", "religion", "calendar")
-    search_fields = ("name", "religion", "calendar")
 
 admin.site.register(Biography, BiographyAdmin)
-admin.site.register(HagiographyCitationModel)
+admin.site.register(FeastDescriptionModel)
