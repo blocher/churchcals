@@ -403,7 +403,7 @@
             </a>
             <div class="nav-menu">
                 <a href="/" class="nav-button active">Daily View</a>
-                <a href="/comparison/{{ date.year }}/?day={{ date|date:'Y-m-d' }}" class="nav-button">Calendar Comparison</a>
+                <a href="/comparison/{{ current_liturgical_year }}/?day={{ date|date:'Y-m-d' }}" class="nav-button">Calendar Comparison</a>
                 <a href="/calendar/{{ date.year }}/{{ date.month }}/?calendar={{ selected_calendar }}" class="nav-button">Calendar View</a>
             </div>
         </div>

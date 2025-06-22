@@ -157,7 +157,19 @@ def comparison_view(request, year=None):
 
     today = date.today()
     
-    return render(request, "saints/welcome.html", {"rows": rows, "year": year, "target_day": target_day, "today": today})
+    # Calculate current liturgical year
+    if has_advent_started(today):
+        current_liturgical_year = today.year
+    else:
+        current_liturgical_year = today.year - 1
+    
+    return render(request, "saints/welcome.html", {
+        "rows": rows, 
+        "year": year, 
+        "target_day": target_day, 
+        "today": today,
+        "current_liturgical_year": current_liturgical_year,
+    })
 
 
 def daily_view(request, date):
@@ -226,6 +238,13 @@ def daily_view(request, date):
     prev_date = target_date - timedelta(days=1)
     next_date = target_date + timedelta(days=1)
     
+    # Calculate current liturgical year
+    today = timezone.now().date()
+    if has_advent_started(today):
+        current_liturgical_year = today.year
+    else:
+        current_liturgical_year = today.year - 1
+    
     context = {
         'date': target_date,
         'events': events,
@@ -234,6 +253,7 @@ def daily_view(request, date):
         'calendar_options': calendar_options,
         'prev_date': prev_date,
         'next_date': next_date,
+        'current_liturgical_year': current_liturgical_year,
     }
     
     return render(request, "saints/daily.html", context)
@@ -319,6 +339,12 @@ def calendar_view(request, year=None, month=None):
     # Current date for highlighting
     today = timezone.now().date()
     
+    # Calculate current liturgical year
+    if has_advent_started(today):
+        current_liturgical_year = today.year
+    else:
+        current_liturgical_year = today.year - 1
+    
     context = {
         'year': year,
         'month': month,
@@ -332,6 +358,7 @@ def calendar_view(request, year=None, month=None):
         'next_year': next_year,
         'next_month': next_month,
         'today': today,
+        'current_liturgical_year': current_liturgical_year,
     }
     
     return render(request, "saints/calendar.html", context)
