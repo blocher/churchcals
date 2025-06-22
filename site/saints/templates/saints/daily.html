@@ -744,20 +744,10 @@
         }
 
         function switchCalendar(calendar) {
-            // Send AJAX request to update session
-            fetch(window.location.pathname, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                    'X-CSRFToken': getCookie('csrftoken')
-                },
-                body: 'selected_calendar=' + calendar
-            }).then(() => {
-                window.location.reload();
-            }).catch(error => {
-                console.error('Error switching calendar:', error);
-                window.location.reload();
-            });
+            // Update URL with new calendar parameter
+            const url = new URL(window.location);
+            url.searchParams.set('calendar', calendar);
+            window.location.href = url.toString();
         }
 
         function showTab(tabIndex) {

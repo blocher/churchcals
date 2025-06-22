@@ -169,15 +169,38 @@ def daily_view(request, date):
     for event in events:
         # Try to find a matching biography
         biography = None
-        if event.saint_name:
-            biography = Biography.objects.filter(name__icontains=event.saint_name).first()
-        elif event.english_name and event.is_person:
-            # Try exact match first, then partial match for saints/people
-            biography = Biography.objects.filter(name__iexact=event.english_name).first()
-            if not biography:
-                # Extract first name part for more flexible matching
-                name_part = event.english_name.split(',')[0].strip()
-                biography = Biography.objects.filter(name__icontains=name_part).first()
+        
+        # First, check if the event has a direct biography relationship
+        if event.biography:
+            biography = event.biography
+        else:
+            # Fallback to name-based matching with calendar preference
+            if event.saint_name:
+                # Try to match by saint_name, preferring biographies from the same calendar
+                biography = Biography.objects.filter(
+                    name__icontains=event.saint_name,
+                    calendar__icontains=selected_calendar
+                ).first()
+                if not biography:
+                    # Fallback to any biography with that name
+                    biography = Biography.objects.filter(name__icontains=event.saint_name).first()
+            elif event.english_name and event.is_person:
+                # Try exact match first, preferring same calendar
+                biography = Biography.objects.filter(
+                    name__iexact=event.english_name,
+                    calendar__icontains=selected_calendar
+                ).first()
+                if not biography:
+                    biography = Biography.objects.filter(name__iexact=event.english_name).first()
+                if not biography:
+                    # Extract first name part for more flexible matching, prefer same calendar
+                    name_part = event.english_name.split(',')[0].strip()
+                    biography = Biography.objects.filter(
+                        name__icontains=name_part,
+                        calendar__icontains=selected_calendar
+                    ).first()
+                    if not biography:
+                        biography = Biography.objects.filter(name__icontains=name_part).first()
         
         events_with_biographies.append({
             'event': event,
