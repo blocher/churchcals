@@ -488,12 +488,15 @@
         });
 
       function updateLayout() {
-        if (window.matchMedia("(max-width: 768px)").matches) {
-          table.setLayout("fitDataFill");  // Or any other layout you want for small screens
-          console.log("small");
-        } else {
-          table.setLayout("fitColumns");
-          console.log("big"); // Default layout for larger screens
+        // Check if table exists and has setLayout method before calling it
+        if (table && typeof table.setLayout === 'function') {
+          if (window.matchMedia("(max-width: 768px)").matches) {
+            table.setLayout("fitDataFill");  // Or any other layout you want for small screens
+            console.log("small");
+          } else {
+            table.setLayout("fitColumns");
+            console.log("big"); // Default layout for larger screens
+          }
         }
       }
 
