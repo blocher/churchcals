@@ -2,9 +2,11 @@ import datetime
 from collections import defaultdict
 from datetime import date, timedelta
 
-from django.shortcuts import render, get_object_or_404
+from django.shortcuts import render, get_object_or_404, redirect
 from django.http import Http404
+from django.utils import timezone
 from saints.models import CalendarEvent, Biography
+import calendar
 
 
 def first_sunday_of_advent(year):
@@ -27,7 +29,13 @@ def has_advent_started(today=None):
     return today >= advent_start
 
 
-def welcome_view(request, year=None):
+def home_view(request):
+    """Redirect to today's daily view."""
+    today = timezone.now().date()
+    return redirect('daily_view', date=today.strftime('%Y-%m-%d'))
+
+
+def comparison_view(request, year=None):
     def serialize_events(events):
         return [
             {
@@ -185,3 +193,98 @@ def daily_view(request, date):
     }
     
     return render(request, "saints/daily.html", context)
+
+
+def calendar_view(request, year=None, month=None):
+    """Display a monthly calendar view with liturgical events."""
+    
+    # Get current date if year/month not provided
+    if not year or not month:
+        today = timezone.now().date()
+        year = year or today.year
+        month = month or today.month
+    else:
+        year = int(year)
+        month = int(month)
+    
+    # Validate year and month
+    if year < 1900 or year > 2100 or month < 1 or month > 12:
+        raise Http404("Invalid date")
+    
+    # Handle calendar switching via POST
+    if request.method == 'POST':
+        selected_calendar = request.POST.get('selected_calendar')
+        if selected_calendar in ['catholic_1954', 'catholic_1962', 'current', 'ordinariate', 'acna', 'tec']:
+            request.session['selected_calendar'] = selected_calendar
+    
+    # Get selected calendar from session, default to Catholic (Current)
+    selected_calendar = request.session.get('selected_calendar', 'current')
+    
+    # Define calendar mappings
+    calendar_options = {
+        'catholic_1954': 'Catholic (1954)',
+        'catholic_1962': 'Catholic (1962)', 
+        'current': 'Catholic (Current)',
+        'ordinariate': 'Catholic (Anglican Ordinariate)',
+        'acna': 'ACNA (2019)',
+        'tec': 'TEC (2024)'
+    }
+    
+    # Filter mapping for database queries
+    calendar_filters = {
+        'catholic_1954': {'calendar__icontains': '1954'},
+        'catholic_1962': {'calendar__icontains': '1960'},  
+        'current': {'calendar__icontains': 'catholic'},
+        'ordinariate': {'calendar__icontains': 'ordinariate'},
+        'acna': {'calendar__icontains': 'acna'},
+        'tec': {'calendar__icontains': 'tec'}
+    }
+    
+    # Get the calendar for the month
+    cal = calendar.monthcalendar(year, month)
+    
+    # Get all events for this month
+    events_this_month = CalendarEvent.objects.filter(
+        date__year=year,
+        date__month=month,
+        **calendar_filters.get(selected_calendar, calendar_filters['current'])
+    ).order_by('date', 'order', 'english_name')
+    
+    # Group events by day
+    events_by_day = {}
+    for event in events_this_month:
+        day = event.date.day
+        if day not in events_by_day:
+            events_by_day[day] = []
+        events_by_day[day].append(event)
+    
+    # Navigation dates
+    if month == 1:
+        prev_year, prev_month = year - 1, 12
+    else:
+        prev_year, prev_month = year, month - 1
+        
+    if month == 12:
+        next_year, next_month = year + 1, 1
+    else:
+        next_year, next_month = year, month + 1
+    
+    # Current date for highlighting
+    today = timezone.now().date()
+    
+    context = {
+        'year': year,
+        'month': month,
+        'month_name': calendar.month_name[month],
+        'calendar_weeks': cal,
+        'events_by_day': events_by_day,
+        'selected_calendar': selected_calendar,
+        'calendar_options': calendar_options,
+        'prev_year': prev_year,
+        'prev_month': prev_month,
+        'next_year': next_year,
+        'next_month': next_month,
+        'today': today,
+    }
+    
+    return render(request, "saints/calendar.html", context)

@@ -1,3 +1,4 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="en">
     <head>
@@ -18,12 +19,13 @@
         <!-- Favicon -->
         <link rel="icon" href="/favicon.ico" type="image/x-icon" />
         <title>Liturgical Calendar Comparison</title>
+        <!-- Common CSS -->
+        <link rel="stylesheet" type="text/css" href="{% static 'saints/css/common.css' %}">
         <!-- Tabulator CSS -->
         <link href="https://unpkg.com/tabulator-tables@6.3.0/dist/css/tabulator_simple.min.css"
               rel="stylesheet" />
-        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=EB+Garamond&display=swap"
-              rel="stylesheet" />
         <style>
+      /* Welcome page specific styles */
       #wrapper {
         height: auto;
         max-height: none;
@@ -50,67 +52,14 @@
       }
 
       body {
-        font-family: "Inter", sans-serif;
-        background: #f9fafb;
-        color: #1f2937;
-        padding: 2rem;
         display: block; /* allow normal block flow for scrolling */
+        padding: 2rem;
       }
 
       .tabulator-tableholder {
         overscroll-behavior-x: contain;
         overscroll-behavior-y: contain;
         -webkit-overflow-scrolling: auto;
-      }
-
-      h1 {
-        font-family: "EB Garamond", serif;
-        font-size: 2.5rem;
-        font-weight: 700;
-        text-align: center;
-        margin-bottom: 1.5rem;
-        color: #111827;
-        letter-spacing: 0.5px;
-        position: relative;
-      }
-
-      h1 .cross {
-        color: #b91c1c; /* deep liturgical red */
-        font-size: 1.2em;
-        margin-right: 0.4em;
-        vertical-align: middle;
-      }
-
-      h1::after {
-        content: "";
-        display: block;
-        width: 60px;
-        height: 2px;
-        margin: 0.75rem auto 0;
-        background: #d1d5db;
-        border-radius: 2px;
-      }
-
-      /* Extracted to classes */
-      .saints-h2 {
-        font-family: "EB Garamond", serif;
-        font-size: 1.75rem;
-        font-weight: 600;
-        text-align: center;
-        color: #374151;
-        margin-top: -1rem;
-        margin-bottom: 2rem;
-        letter-spacing: 0.3px;
-        position: relative;
-      }
-      .saints-h2::after {
-        content: "";
-        display: block;
-        width: 40px;
-        height: 1.5px;
-        margin: 0.5rem auto 0;
-        background: #e5e7eb;
-        border-radius: 1px;
       }
 
       #controls {
@@ -308,7 +257,7 @@
         <script>
       function navigateToYear() {
         const yearRange = document.getElementById("liturgical-year").value;
-        window.location.pathname = `year/${yearRange}/`;
+        window.location.pathname = `/comparison/${yearRange}/`;
       }
         </script>
         <div id="layout-container" class="layout-container">

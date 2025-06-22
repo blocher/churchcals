@@ -207,10 +207,212 @@
             }
         }
     </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Navigation -->
+        <div class="navigation">
+            <a href="/day/{{ prev_date|date:'Y-m-d' }}/" class="nav-button">
+                ← {{ prev_date|date:'M j' }}
+            </a>
+            <a href="/comparison/" class="home-button">Calendar Comparison</a>
+            <a href="/day/{{ next_date|date:'Y-m-d' }}/" class="nav-button">
+                {{ next_date|date:'M j' }} →
+            </a>
+        </div>
 
-        }
+        <!-- Date Display -->
+        <div class="date-display">
+            <div class="day-of-week">{{ date|date:'l' }}</div>
+            <div class="date-number">{{ date|date:'j' }}</div>
+            <div class="month-year">{{ date|date:'F Y' }}</div>
+        </div>
 
-        function switchCalendar(calendar) {
+        <!-- Calendar Switcher -->
+        <div class="calendar-switcher">
+            <div class="calendar-select-container">
+                <label for="calendar-select" class="form-label">Select Calendar Tradition:</label>
+                <select id="calendar-select" class="form-select" onchange="switchCalendar(this.value)">
+                    {% for key, label in calendar_options.items %}
+                    <option value="{{ key }}" {% if key == selected_calendar %}selected{% endif %}>
+                        {{ label }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+
+        <!-- Events Container -->
+        <div class="events-container">
+            <div class="events-header">
+                Liturgical Events - {{ calendar_options|lookup:selected_calendar }}
+            </div>
+
+            {% if events %}
+                {% if events|length > 1 %}
+                <!-- Multiple events - show tabs -->
+                <div class="tabs">
+                    {% for event_data in events_with_biographies %}
+                    <div class="tab {% if forloop.first %}active{% endif %}{% if event_data.biography %} has-biography{% endif %}" 
+                         onclick="showTab({{ forloop.counter0 }})">
+                        {{ event_data.event.english_name|truncatechars:30 }}
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+                {% for event_data in events_with_biographies %}
+                <div class="tab-content {% if forloop.first %}active{% endif %}" id="tab-{{ forloop.counter0 }}">
+                    <div class="event-details">
+                        <h1 class="event-title">{{ event_data.event.english_name }}</h1>
+                        {% if event_data.event.english_rank %}
+                        <div class="event-rank">{{ event_data.event.english_rank }}</div>
+                        {% endif %}
+                        {% if event_data.event.latin_name %}
+                        <div class="latin-title">{{ event_data.event.latin_name }}</div>
+                        {% endif %}
+                    </div>
+
+                    {% if event_data.biography %}
+                    <!-- Biography information -->
+                    <div class="biography-section">
+                        <div class="section-title">About {{ event_data.biography.name }}</div>
+                        
+                        {% comment %} Move bullet points to the top in a styled box {% endcomment %}
+                        {% if event_data.biography.bullet_points %}
+                        <div class="bullet-points-box">
+                            <h4>Key Facts</h4>
+                            <ul>
+                                {% for bullet in event_data.biography.bullet_points.bullet_points.all %}
+                                <li>{{ bullet.text }}</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                        {% endif %}
+                        
+                        {% if event_data.biography.short_descriptions %}
+                        <div class="content-section">
+                            {% if event_data.biography.short_descriptions.one_sentence_description %}
+                            <p><strong>{{ event_data.biography.short_descriptions.one_sentence_description }}</strong></p>
+                            {% endif %}
+                            {% if event_data.biography.short_descriptions.one_paragraph_description %}
+                            <p>{{ event_data.biography.short_descriptions.one_paragraph_description }}</p>
+                            {% endif %}
+                        </div>
+                        {% endif %}
+
+                        {% if event_data.biography.quote %}
+                        <div class="quote-box">
+                            "{{ event_data.biography.quote.quote }}"
+                            <div class="quote-attribution">
+                                — {{ event_data.biography.quote.person }}{% if event_data.biography.quote.date %}, {{ event_data.biography.quote.date }}{% endif %}
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        {% if event_data.biography.bible_verse %}
+                        <div class="verse-box">
+                            {{ event_data.biography.bible_verse.text }}
+                            <div class="verse-attribution">
+                                — {{ event_data.biography.bible_verse.citation }} ({{ event_data.biography.bible_verse.bible_version_abbreviation }})
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        {% if event_data.biography.hagiography %}
+                        <div class="content-section">
+                            <div class="section-title">Hagiography</div>
+                            <div>
+                                {{ event_data.biography.hagiography.hagiography|linebreaks }}
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        {% if event_data.biography.legend %}
+                        <div class="content-section">
+                            <div class="section-title">{{ event_data.biography.legend.title }}</div>
+                            <div>
+                                {{ event_data.biography.legend.legend|linebreaks }}
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        {% if event_data.biography.traditions.all %}
+                        <div class="content-section">
+                            <div class="section-title">Traditions</div>
+                            {% for tradition in event_data.biography.traditions.all %}
+                            <div class="tradition-item">
+                                <strong>{% if tradition.country_of_origin %}{{ tradition.country_of_origin }}: {% endif %}</strong>
+                                <p>{{ tradition.tradition }}</p>
+                                {% if tradition.reason_associated_with_saint %}
+                                <p><em>{{ tradition.reason_associated_with_saint }}</em></p>
+                                {% endif %}
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+
+                        {% if event_data.biography.foods.all %}
+                        <div class="content-section">
+                            <div class="section-title">Traditional Foods</div>
+                            {% for food in event_data.biography.foods.all %}
+                            <div class="food-item">
+                                <strong>{{ food.food_name }}{% if food.country_of_origin %} ({{ food.country_of_origin }}){% endif %}</strong>
+                                <p>{{ food.description }}</p>
+                                {% if food.reason_associated_with_saint %}
+                                <p><em>{{ food.reason_associated_with_saint }}</em></p>
+                                {% endif %}
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% else %}
+                    <!-- Basic event information when no biography is available -->
+                    <div class="biography-section">
+                        <div class="section-title">About this Observance</div>
+                        <div class="content-section">
+                            <p>This observance appears in the {{ event_data.event.calendar }} calendar
+                            {% if event_data.event.temporale_or_sanctorale %}
+                            as part of the {{ event_data.event.temporale_or_sanctorale }}
+                            {% endif %}
+                            {% if event_data.event.color %}
+                            with liturgical color {{ event_data.event.color }}
+                            {% endif %}.</p>
+                        </div>
+                        
+                        {% if event_data.event.english_notes %}
+                        <div class="content-section">
+                            <p><strong>Notes:</strong> {{ event_data.event.english_notes }}</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="no-events">
+                    No liturgical events found for this date in the {{ calendar_options|lookup:selected_calendar }} calendar.
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <script>
+        // Get CSRF token
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
         }
 
         function switchCalendar(calendar) {

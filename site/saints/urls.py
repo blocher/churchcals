@@ -16,11 +16,14 @@ Including another URLconf
 
 from django.contrib import admin
 from django.urls import path
-from saints.views import welcome_view, daily_view
+from saints.views import home_view, comparison_view, daily_view, calendar_view
 
 urlpatterns = [
     path("admin/", admin.site.urls),
-    path("", welcome_view, name="welcome"),
-    path("year/<str:year>/", welcome_view, name="welcome_with_year"),
+    path("", home_view, name="home"),
+    path("comparison/", comparison_view, name="comparison"),
+    path("comparison/<str:year>/", comparison_view, name="comparison_with_year"),
     path("day/<str:date>/", daily_view, name="daily_view"),
+    path("calendar/", calendar_view, name="calendar_view"),
+    path("calendar/<int:year>/<int:month>/", calendar_view, name="calendar_view_with_date"),
 ]
