@@ -106,7 +106,11 @@ def comparison_view(request, year=None):
 
     print(rows[:-1])
 
-    return render(request, "saints/welcome.html", {"rows": rows, "year": year})
+    # Get the target day for scrolling (if provided)
+    target_day = request.GET.get('day')
+    today = date.today()
+    
+    return render(request, "saints/welcome.html", {"rows": rows, "year": year, "target_day": target_day, "today": today})
 
 
 def daily_view(request, date):
@@ -129,8 +133,10 @@ def daily_view(request, date):
         if selected_calendar in ['catholic_1954', 'catholic_1962', 'current', 'ordinariate', 'acna', 'tec']:
             request.session['selected_calendar'] = selected_calendar
     
-    # Get selected calendar from session, default to Catholic (Current)
-    selected_calendar = request.session.get('selected_calendar', 'current')
+    # Get selected calendar from session or query parameter, default to Catholic (Current)
+    selected_calendar = request.GET.get('calendar', request.session.get('selected_calendar', 'current'))
+    if selected_calendar in ['catholic_1954', 'catholic_1962', 'current', 'ordinariate', 'acna', 'tec']:
+        request.session['selected_calendar'] = selected_calendar
     
     # Define calendar mappings
     calendar_options = {
@@ -217,8 +223,10 @@ def calendar_view(request, year=None, month=None):
         if selected_calendar in ['catholic_1954', 'catholic_1962', 'current', 'ordinariate', 'acna', 'tec']:
             request.session['selected_calendar'] = selected_calendar
     
-    # Get selected calendar from session, default to Catholic (Current)
-    selected_calendar = request.session.get('selected_calendar', 'current')
+    # Get selected calendar from session or query parameter, default to Catholic (Current)
+    selected_calendar = request.GET.get('calendar', request.session.get('selected_calendar', 'current'))
+    if selected_calendar in ['catholic_1954', 'catholic_1962', 'current', 'ordinariate', 'acna', 'tec']:
+        request.session['selected_calendar'] = selected_calendar
     
     # Define calendar mappings
     calendar_options = {

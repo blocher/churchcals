@@ -175,6 +175,191 @@
             font-size: 1.1rem;
         }
 
+        /* Citations styling */
+        .citations {
+            margin-top: 20px;
+            padding: 16px;
+            background: #f8fafc;
+            border-radius: 8px;
+            border-left: 4px solid #6b7280;
+        }
+
+        .citations h4 {
+            font-size: 1rem;
+            color: #374151;
+            margin-bottom: 12px;
+            font-weight: 600;
+        }
+
+        .citation-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .citation-list li {
+            margin-bottom: 8px;
+            padding-left: 16px;
+            position: relative;
+        }
+
+        .citation-list li:before {
+            content: "→";
+            position: absolute;
+            left: 0;
+            color: #6b7280;
+        }
+
+        .citation-list a {
+            color: #2563eb;
+            text-decoration: none;
+            transition: color 0.2s ease;
+        }
+
+        .citation-list a:hover {
+            color: #1d4ed8;
+            text-decoration: underline;
+        }
+
+        /* Writings styling */
+        .writing-item {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 16px 0;
+            border-left: 4px solid #3b82f6;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .writing-item h5 {
+            font-size: 1.2rem;
+            color: #1f2937;
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+
+        .writing-author {
+            color: #6b7280;
+            font-style: italic;
+            margin-bottom: 4px;
+        }
+
+        .writing-date {
+            color: #6b7280;
+            font-size: 0.9rem;
+            margin-bottom: 12px;
+        }
+
+        .writing-content {
+            margin: 12px 0;
+            line-height: 1.7;
+        }
+
+        .writing-link a {
+            color: #2563eb;
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.2s ease;
+        }
+
+        .writing-link a:hover {
+            color: #1d4ed8;
+            text-decoration: underline;
+        }
+
+        /* Image Carousel Styling */
+        .image-carousel {
+            margin: 20px 0;
+        }
+
+        .carousel-container {
+            position: relative;
+            background: #f8fafc;
+            border-radius: 12px;
+            overflow: hidden;
+            max-width: 100%;
+            margin-bottom: 16px;
+        }
+
+        .carousel-track {
+            display: flex;
+            transition: transform 0.3s ease;
+            min-height: 300px;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .carousel-image {
+            width: 100%;
+            height: auto;
+            max-height: 400px;
+            object-fit: contain;
+            flex-shrink: 0;
+            border-radius: 8px;
+        }
+
+        .carousel-button {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            font-size: 20px;
+            cursor: pointer;
+            z-index: 10;
+            transition: background-color 0.2s ease;
+        }
+
+        .carousel-button:hover {
+            background: rgba(0, 0, 0, 0.9);
+        }
+
+        .carousel-button.prev {
+            left: 10px;
+        }
+
+        .carousel-button.next {
+            right: 10px;
+        }
+
+        .carousel-indicators {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .indicator {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #d1d5db;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+        }
+
+        .indicator.active {
+            background: #6b7280;
+        }
+
+        .image-caption {
+            text-align: center;
+            color: #6b7280;
+            font-size: 0.9rem;
+            padding: 8px;
+            background: #f8fafc;
+            border-radius: 6px;
+            margin-top: 8px;
+        }
+
+        .image-caption strong {
+            color: #374151;
+        }
+
         /* Mobile responsive adjustments */
         @media (max-width: 768px) {
             .date-number {
@@ -218,8 +403,8 @@
             </a>
             <div class="nav-menu">
                 <a href="/" class="nav-button active">Daily View</a>
-                <a href="/comparison/" class="nav-button">Calendar Comparison</a>
-                <a href="/calendar/" class="nav-button">Calendar View</a>
+                <a href="/comparison/{{ date.year }}/?day={{ date|date:'Y-m-d' }}" class="nav-button">Calendar Comparison</a>
+                <a href="/calendar/{{ date.year }}/{{ date.month }}/?calendar={{ selected_calendar }}" class="nav-button">Calendar View</a>
             </div>
         </div>
     </nav>
@@ -227,10 +412,10 @@
     <div class="container">
         <!-- Date Navigation -->
         <div class="navigation">
-            <a href="/day/{{ prev_date|date:'Y-m-d' }}/" class="nav-button">
+            <a href="/day/{{ prev_date|date:'Y-m-d' }}/?calendar={{ selected_calendar }}" class="nav-button">
                 ← {{ prev_date|date:'M j' }}
             </a>
-            <a href="/day/{{ next_date|date:'Y-m-d' }}/" class="nav-button">
+            <a href="/day/{{ next_date|date:'Y-m-d' }}/?calendar={{ selected_calendar }}" class="nav-button">
                 {{ next_date|date:'M j' }} →
             </a>
         </div>
@@ -315,6 +500,39 @@
                         </div>
                         {% endif %}
 
+                        <!-- Image Carousel Section -->
+                        {% if event_data.biography.images.all %}
+                        <div class="content-section">
+                            <div class="section-title">Images</div>
+                            <div class="image-carousel" id="carousel-{{ forloop.counter0 }}">
+                                <div class="carousel-container">
+                                    <div class="carousel-track" id="track-{{ forloop.counter0 }}">
+                                        <!-- Images will be loaded here by JavaScript -->
+                                    </div>
+                                    <button class="carousel-button prev" onclick="prevImage({{ forloop.counter0 }})" style="display:none;">‹</button>
+                                    <button class="carousel-button next" onclick="nextImage({{ forloop.counter0 }})" style="display:none;">›</button>
+                                </div>
+                                <div class="carousel-indicators" id="indicators-{{ forloop.counter0 }}">
+                                    <!-- Indicators will be loaded here by JavaScript -->
+                                </div>
+                                <div class="image-caption" id="caption-{{ forloop.counter0 }}"></div>
+                            </div>
+                            <!-- Store image data for JavaScript -->
+                            <script type="application/json" id="images-{{ forloop.counter0 }}">
+                                [
+                                    {% for image in event_data.biography.images.all %}
+                                    {
+                                        "url": "{{ image.url|escapejs }}",
+                                        "title": "{{ image.title|escapejs }}",
+                                        "author": "{{ image.author|default:""|escapejs }}",
+                                        "date": "{{ image.date|default:""|escapejs }}"
+                                    }{% if not forloop.last %},{% endif %}
+                                    {% endfor %}
+                                ]
+                            </script>
+                        </div>
+                        {% endif %}
+
                         {% if event_data.biography.quote %}
                         <div class="quote-box">
                             "{{ event_data.biography.quote.quote }}"
@@ -339,6 +557,24 @@
                             <div>
                                 {{ event_data.biography.hagiography.hagiography|linebreaks }}
                             </div>
+                            {% if event_data.biography.hagiography.citations.all %}
+                            <div class="citations">
+                                <h4>Sources:</h4>
+                                <ul class="citation-list">
+                                    {% for citation in event_data.biography.hagiography.citations.all %}
+                                    <li>
+                                        {% if citation.url %}
+                                        <a href="{{ citation.url }}" target="_blank" rel="noopener noreferrer">
+                                            {{ citation.title|default:citation.citation }}
+                                        </a>
+                                        {% else %}
+                                        {{ citation.title|default:citation.citation }}
+                                        {% endif %}
+                                    </li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                            {% endif %}
                         </div>
                         {% endif %}
 
@@ -348,6 +584,84 @@
                             <div>
                                 {{ event_data.biography.legend.legend|linebreaks }}
                             </div>
+                            {% if event_data.biography.legend.citations.all %}
+                            <div class="citations">
+                                <h4>Sources:</h4>
+                                <ul class="citation-list">
+                                    {% for citation in event_data.biography.legend.citations.all %}
+                                    <li>
+                                        {% if citation.url %}
+                                        <a href="{{ citation.url }}" target="_blank" rel="noopener noreferrer">
+                                            {{ citation.title|default:citation.citation }}
+                                        </a>
+                                        {% else %}
+                                        {{ citation.title|default:citation.citation }}
+                                        {% endif %}
+                                    </li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                            {% endif %}
+                        </div>
+                        {% endif %}
+
+                        <!-- Writings Section -->
+                        {% if event_data.biography.writings.all %}
+                        {% regroup event_data.biography.writings.all|dictsort:"order" by type as writings_by_type %}
+                        {% for type_group in writings_by_type %}
+                        <div class="content-section">
+                            <div class="section-title">
+                                {% if type_group.grouper == 'by' %}Writings by {{ event_data.biography.name }}
+                                {% else %}Writings about {{ event_data.biography.name }}{% endif %}
+                            </div>
+                            {% for writing in type_group.list %}
+                            <div class="writing-item">
+                                <h5>{{ writing.title }}</h5>
+                                {% if writing.author and type_group.grouper == 'about' %}
+                                <p class="writing-author">by {{ writing.author }}</p>
+                                {% endif %}
+                                {% if writing.date %}
+                                <p class="writing-date">{{ writing.date }}</p>
+                                {% endif %}
+                                <div class="writing-content">
+                                    {{ writing.writing|linebreaks }}
+                                </div>
+                                {% if writing.url %}
+                                <p class="writing-link">
+                                    <a href="{{ writing.url }}" target="_blank" rel="noopener noreferrer">Read more</a>
+                                </p>
+                                {% endif %}
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% endfor %}
+                        {% endif %}
+
+                        <!-- Feast Description Section -->
+                        {% if event_data.biography.feast_description %}
+                        <div class="content-section">
+                            <div class="section-title">About this Feast</div>
+                            <div>
+                                {{ event_data.biography.feast_description.feast_description|linebreaks }}
+                            </div>
+                            {% if event_data.biography.feast_description.citations.all %}
+                            <div class="citations">
+                                <h4>Sources:</h4>
+                                <ul class="citation-list">
+                                    {% for citation in event_data.biography.feast_description.citations.all %}
+                                    <li>
+                                        {% if citation.url %}
+                                        <a href="{{ citation.url }}" target="_blank" rel="noopener noreferrer">
+                                            {{ citation.title|default:citation.citation }}
+                                        </a>
+                                        {% else %}
+                                        {{ citation.title|default:citation.citation }}
+                                        {% endif %}
+                                    </li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                            {% endif %}
                         </div>
                         {% endif %}
 
@@ -458,6 +772,173 @@
             tabs[tabIndex].classList.add('active');
             contents[tabIndex].classList.add('active');
         }
+
+        // Image Carousel Functions
+        const carousels = {};
+
+        function initializeCarousels() {
+            // Find all image carousels and initialize them
+            const carouselElements = document.querySelectorAll('.image-carousel');
+            carouselElements.forEach((carousel, index) => {
+                const carouselId = carousel.id.split('-')[1];
+                const imagesScript = document.getElementById(`images-${carouselId}`);
+                if (imagesScript) {
+                    try {
+                        const images = JSON.parse(imagesScript.textContent);
+                        carousels[carouselId] = {
+                            images: [],
+                            currentIndex: 0,
+                            validImages: []
+                        };
+                        
+                        // Validate images and load valid ones
+                        loadValidImages(carouselId, images);
+                    } catch (e) {
+                        console.error('Error parsing image data:', e);
+                    }
+                }
+            });
+        }
+
+        function isValidImageUrl(url) {
+            // Check if URL has valid image extension
+            const validExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg', '.bmp'];
+            const urlLower = url.toLowerCase();
+            return validExtensions.some(ext => urlLower.includes(ext)) || 
+                   urlLower.includes('image') || 
+                   urlLower.includes('photo') ||
+                   urlLower.includes('picture');
+        }
+
+        function loadValidImages(carouselId, images) {
+            const validImages = [];
+            let loadedCount = 0;
+            
+            if (images.length === 0) {
+                return;
+            }
+
+            images.forEach((imageData, index) => {
+                if (!isValidImageUrl(imageData.url)) {
+                    loadedCount++;
+                    if (loadedCount === images.length) {
+                        finishCarouselSetup(carouselId, validImages);
+                    }
+                    return;
+                }
+
+                const img = new Image();
+                img.onload = function() {
+                    validImages.push({...imageData, index: validImages.length});
+                    loadedCount++;
+                    if (loadedCount === images.length) {
+                        finishCarouselSetup(carouselId, validImages);
+                    }
+                };
+                img.onerror = function() {
+                    console.log('Failed to load image:', imageData.url);
+                    loadedCount++;
+                    if (loadedCount === images.length) {
+                        finishCarouselSetup(carouselId, validImages);
+                    }
+                };
+                img.src = imageData.url;
+            });
+        }
+
+        function finishCarouselSetup(carouselId, validImages) {
+            if (validImages.length === 0) {
+                // Hide carousel if no valid images
+                const carousel = document.getElementById(`carousel-${carouselId}`);
+                if (carousel) {
+                    carousel.style.display = 'none';
+                }
+                return;
+            }
+
+            carousels[carouselId].validImages = validImages;
+            carousels[carouselId].currentIndex = 0;
+            
+            renderCarousel(carouselId);
+            
+            // Show navigation buttons if more than one image
+            if (validImages.length > 1) {
+                const prevBtn = document.querySelector(`#carousel-${carouselId} .prev`);
+                const nextBtn = document.querySelector(`#carousel-${carouselId} .next`);
+                if (prevBtn) prevBtn.style.display = 'block';
+                if (nextBtn) nextBtn.style.display = 'block';
+            }
+        }
+
+        function renderCarousel(carouselId) {
+            const carousel = carousels[carouselId];
+            const track = document.getElementById(`track-${carouselId}`);
+            const indicators = document.getElementById(`indicators-${carouselId}`);
+            const caption = document.getElementById(`caption-${carouselId}`);
+            
+            if (!carousel || !track) return;
+
+            // Clear existing content
+            track.innerHTML = '';
+            indicators.innerHTML = '';
+            
+            const currentImage = carousel.validImages[carousel.currentIndex];
+            
+            // Add current image
+            const img = document.createElement('img');
+            img.src = currentImage.url;
+            img.alt = currentImage.title;
+            img.className = 'carousel-image';
+            track.appendChild(img);
+            
+            // Add indicators
+            carousel.validImages.forEach((_, index) => {
+                const indicator = document.createElement('span');
+                indicator.className = `indicator ${index === carousel.currentIndex ? 'active' : ''}`;
+                indicator.onclick = () => goToImage(carouselId, index);
+                indicators.appendChild(indicator);
+            });
+            
+            // Update caption
+            let captionText = `<strong>${currentImage.title}</strong>`;
+            if (currentImage.author) {
+                captionText += ` by ${currentImage.author}`;
+            }
+            if (currentImage.date) {
+                captionText += ` (${currentImage.date})`;
+            }
+            caption.innerHTML = captionText;
+        }
+
+        function nextImage(carouselId) {
+            const carousel = carousels[carouselId];
+            if (!carousel) return;
+            
+            carousel.currentIndex = (carousel.currentIndex + 1) % carousel.validImages.length;
+            renderCarousel(carouselId);
+        }
+
+        function prevImage(carouselId) {
+            const carousel = carousels[carouselId];
+            if (!carousel) return;
+            
+            carousel.currentIndex = carousel.currentIndex === 0 ? 
+                carousel.validImages.length - 1 : carousel.currentIndex - 1;
+            renderCarousel(carouselId);
+        }
+
+        function goToImage(carouselId, index) {
+            const carousel = carousels[carouselId];
+            if (!carousel) return;
+            
+            carousel.currentIndex = index;
+            renderCarousel(carouselId);
+        }
+
+        // Initialize carousels when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeCarousels();
+        });
     </script>
 </body>
 </html>

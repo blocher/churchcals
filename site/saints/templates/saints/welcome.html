@@ -239,7 +239,7 @@
                     Liturgical Calendar
                 </a>
                 <div class="nav-menu">
-                    <a href="/" class="nav-button">Daily View</a>
+                    <a href="/?calendar=current" class="nav-button">Daily View</a>
                     <a href="/comparison/" class="nav-button active">Calendar Comparison</a>
                     <a href="/calendar/" class="nav-button">Calendar View</a>
                 </div>
@@ -465,6 +465,39 @@
 
       // Run on window resize
       window.addEventListener('resize', updateLayout);
+
+      // Scroll to target day or today
+      {% if target_day %}
+      document.addEventListener('DOMContentLoaded', function() {
+          // Wait for table to be fully rendered
+          setTimeout(function() {
+              const targetDate = '{{ target_day }}';
+              const rows = table.getRows();
+              rows.forEach(function(row) {
+                  const rowData = row.getData();
+                  if (rowData.date_link === targetDate) {
+                      table.scrollToRow(row, "center", false);
+                      return;
+                  }
+              });
+          }, 500);
+      });
+      {% elif not target_day %}
+      // Scroll to today if no target day specified
+      document.addEventListener('DOMContentLoaded', function() {
+          setTimeout(function() {
+              const today = '{{ today|date:"Y-m-d" }}';
+              const rows = table.getRows();
+              rows.forEach(function(row) {
+                  const rowData = row.getData();
+                  if (rowData.date_link === today) {
+                      table.scrollToRow(row, "center", false);
+                      return;
+                  }
+              });
+          }, 500);
+      });
+      {% endif %}
         </script>
     </body>
 </html>

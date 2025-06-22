@@ -292,8 +292,8 @@
                 Liturgical Calendar
             </a>
             <div class="nav-menu">
-                <a href="/" class="nav-button">Daily View</a>
-                <a href="/comparison/" class="nav-button">Calendar Comparison</a>
+                <a href="/?calendar={{ selected_calendar }}" class="nav-button">Daily View</a>
+                <a href="/comparison/{{ year }}/" class="nav-button">Calendar Comparison</a>
                 <a href="/calendar/" class="nav-button active">Calendar View</a>
             </div>
         </div>
@@ -433,7 +433,7 @@
 
         function goToDay(year, month, day) {
             const dateStr = `${year}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
-            window.location.href = `/day/${dateStr}/`;
+            window.location.href = `/day/${dateStr}/?calendar={{ selected_calendar }}`;
         }
 
         // Store events data in JavaScript
