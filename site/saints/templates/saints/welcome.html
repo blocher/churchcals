@@ -231,6 +231,21 @@
         </style>
     </head>
     <body>
+        <!-- Main Navigation -->
+        <nav class="main-navigation">
+            <div class="nav-container">
+                <a href="/" class="nav-title">
+                    <span class="cross">✠</span>
+                    Liturgical Calendar
+                </a>
+                <div class="nav-menu">
+                    <a href="/" class="nav-button">Daily View</a>
+                    <a href="/comparison/" class="nav-button active">Calendar Comparison</a>
+                    <a href="/calendar/" class="nav-button">Calendar View</a>
+                </div>
+            </div>
+        </nav>
+
         <h1>Liturgical Calendar Comparison</h1>
         <h2 class="saints-h2">{{ year }}–{{ year|add:"1" }}</h2>
         <div id="liturgical-year-selector">

@@ -264,24 +264,48 @@
             }
 
             .events-in-day {
-                margin-top: 28px;
-                max-height: 60px;
+                margin-top: 20px;
+                max-height: 70px;
+                padding: 0 4px 4px;
+                overflow: hidden;
             }
 
             .event-item {
-                font-size: 0.7rem;
+                font-size: 0.65rem;
+                padding: 2px 4px;
+                margin-bottom: 1px;
+                line-height: 1.2;
+                word-wrap: break-word;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
             }
         }
     </style>
 </head>
 <body>
+    <!-- Main Navigation -->
+    <nav class="main-navigation">
+        <div class="nav-container">
+            <a href="/" class="nav-title">
+                <span class="cross">✠</span>
+                Liturgical Calendar
+            </a>
+            <div class="nav-menu">
+                <a href="/" class="nav-button">Daily View</a>
+                <a href="/comparison/" class="nav-button">Calendar Comparison</a>
+                <a href="/calendar/" class="nav-button active">Calendar View</a>
+            </div>
+        </div>
+    </nav>
+
     <div class="container">
-        <!-- Navigation -->
+        <!-- Date Navigation -->
         <div class="navigation">
             <a href="/calendar/{{ prev_year }}/{{ prev_month }}/" class="nav-button">
                 ← Previous Month
             </a>
-            <a href="/comparison/" class="home-button">Calendar Comparison</a>
+            <a href="/calendar/{{ today.year }}/{{ today.month }}/" class="nav-button">Today</a>
             <a href="/calendar/{{ next_year }}/{{ next_month }}/" class="nav-button">
                 Next Month →
             </a>

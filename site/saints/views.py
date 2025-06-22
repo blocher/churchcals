@@ -240,7 +240,8 @@ def calendar_view(request, year=None, month=None):
         'tec': {'calendar__icontains': 'tec'}
     }
     
-    # Get the calendar for the month
+    # Get the calendar for the month (Sunday first)
+    calendar.setfirstweekday(calendar.SUNDAY)
     cal = calendar.monthcalendar(year, month)
     
     # Get all events for this month

@@ -209,13 +209,27 @@
     </style>
 </head>
 <body>
+    <!-- Main Navigation -->
+    <nav class="main-navigation">
+        <div class="nav-container">
+            <a href="/" class="nav-title">
+                <span class="cross">✠</span>
+                Liturgical Calendar
+            </a>
+            <div class="nav-menu">
+                <a href="/" class="nav-button active">Daily View</a>
+                <a href="/comparison/" class="nav-button">Calendar Comparison</a>
+                <a href="/calendar/" class="nav-button">Calendar View</a>
+            </div>
+        </div>
+    </nav>
+
     <div class="container">
-        <!-- Navigation -->
+        <!-- Date Navigation -->
         <div class="navigation">
             <a href="/day/{{ prev_date|date:'Y-m-d' }}/" class="nav-button">
                 ← {{ prev_date|date:'M j' }}
             </a>
-            <a href="/comparison/" class="home-button">Calendar Comparison</a>
             <a href="/day/{{ next_date|date:'Y-m-d' }}/" class="nav-button">
                 {{ next_date|date:'M j' }} →
             </a>
