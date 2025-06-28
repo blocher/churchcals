@@ -963,24 +963,33 @@
         function checkSourceLinks() {
             const citationLinks = document.querySelectorAll('.citation-list a');
             citationLinks.forEach(link => {
-                fetch(link.href, {method: 'HEAD'}).then(resp => {
-                    if (resp.status >= 400) {
-                        link.textContent = link.textContent + ' ❌';
-                    }
-                }).catch(() => {
-                    link.textContent = link.textContent + ' ❌';
-                });
+                fetch(link.href, {method: 'HEAD'})
+                    .then(resp => {
+                        if (resp.status >= 400 && resp.status < 600) {
+                            const span = document.createElement('span');
+                            span.textContent = link.textContent + ' ❌';
+                            link.replaceWith(span);
+                        }
+                    })
+                    .catch(() => {
+                        /* Ignore network errors (likely CORS issues) */
+                    });
             });
 
             const readMoreLinks = document.querySelectorAll('.writing-link a');
             readMoreLinks.forEach(link => {
-                fetch(link.href, {method: 'HEAD'}).then(resp => {
-                    if (resp.status >= 400) {
-                        link.textContent = link.textContent + ' ❌';
-                    }
-                }).catch(() => {
-                    link.textContent = link.textContent + ' ❌';
-                });
+                fetch(link.href, {method: 'HEAD'})
+                    .then(resp => {
+                        if (resp.status >= 400 && resp.status < 600) {
+                            const span = document.createElement('span');
+                            span.textContent = `Source: ${link.href} ❌`;
+                            const parent = link.parentElement;
+                            parent.replaceWith(span);
+                        }
+                    })
+                    .catch(() => {
+                        /* Ignore network errors */
+                    });
             });
         }
 

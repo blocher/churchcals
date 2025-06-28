@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Redirecting...</title>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const tzDate = new Date();
+            const iso = tzDate.toISOString().slice(0,10);
+            window.location.replace(`/day/${iso}/`);
+        });
+    </script>
+</head>
+<body>
+    <p>Redirecting to today's date…</p>
+</body>
+</html>
