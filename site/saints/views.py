@@ -116,11 +116,6 @@ def comparison_view(request, year=None):
                 **base_filter, calendar__icontains="catholic"
             )
         ),
-        "calendar_ordinariate": group_events(
-            CalendarEvent.objects.filter(
-                **base_filter, calendar__icontains="ordinariate"
-            )
-        ),
         "calendar_acna": group_events(
             CalendarEvent.objects.filter(
                 **base_filter, calendar__icontains="acna"
@@ -145,12 +140,11 @@ def comparison_view(request, year=None):
         row = {
             "date": f"{day.strftime('%a')}<br><span style='font-size:1.1em;'><strong>{day.strftime('%b')} {day.strftime('%-d')}</strong><br>{day.strftime('%Y')}</span>",
             "date_link": day.strftime('%Y-%m-%d'),  # Add date string for linking
+            "current": format_display(serialize_events(calendars["calendar_current"].get(month_day, []))),
             "catholic_1954": format_display(serialize_events(calendars["calendar_1954"].get(month_day, []))),
             "catholic_1962": format_display(serialize_events(calendars["calendar_1960"].get(month_day, []))),
-            "current": format_display(serialize_events(calendars["calendar_current"].get(month_day, []))),
-            "ordinariate": format_display(serialize_events(calendars["calendar_ordinariate"].get(month_day, []))),
-            "acna": format_display(serialize_events(calendars["calendar_acna"].get(month_day, []))),
             "tec": format_display(serialize_events(calendars["calendar_tec"].get(month_day, []))),
+            "acna": format_display(serialize_events(calendars["calendar_acna"].get(month_day, []))),
         }
 
         rows.append(row)
@@ -189,32 +183,30 @@ def daily_view(request, date):
     # Handle calendar switching via POST
     if request.method == 'POST':
         selected_calendar = request.POST.get('selected_calendar')
-        if selected_calendar in ['catholic_1954', 'catholic_1962', 'current', 'ordinariate', 'acna', 'tec']:
+        if selected_calendar in ['catholic_1954', 'catholic_1962', 'current', 'acna', 'tec']:
             request.session['selected_calendar'] = selected_calendar
     
     # Get selected calendar from session or query parameter, default to Catholic (Current)
     selected_calendar = request.GET.get('calendar', request.session.get('selected_calendar', 'current'))
-    if selected_calendar in ['catholic_1954', 'catholic_1962', 'current', 'ordinariate', 'acna', 'tec']:
+    if selected_calendar in ['catholic_1954', 'catholic_1962', 'current', 'acna', 'tec']:
         request.session['selected_calendar'] = selected_calendar
     
     # Define calendar mappings
     calendar_options = {
-        'catholic_1954': 'Catholic (1954)',
-        'catholic_1962': 'Catholic (1962)', 
         'current': 'Catholic (Current)',
-        'ordinariate': 'Catholic (Anglican Ordinariate)',
-        'acna': 'ACNA (2019)',
-        'tec': 'TEC (2024)'
+        'catholic_1954': 'Catholic (1954)',
+        'catholic_1962': 'Catholic (1962)',
+        'tec': 'TEC (2024)',
+        'acna': 'ACNA (2019)'
     }
     
     # Filter mapping for database queries
     calendar_filters = {
+        'current': {'calendar__icontains': 'catholic'},
         'catholic_1954': {'calendar__icontains': '1954'},
         'catholic_1962': {'calendar__icontains': '1960'},  # Note: 1962 uses 1960 in the code
-        'current': {'calendar__icontains': 'catholic'},
-        'ordinariate': {'calendar__icontains': 'ordinariate'},
-        'acna': {'calendar__icontains': 'acna'},
-        'tec': {'calendar__icontains': 'tec'}
+        'tec': {'calendar__icontains': 'tec'},
+        'acna': {'calendar__icontains': 'acna'}
     }
     
     # Get events for this date
@@ -222,6 +214,20 @@ def daily_view(request, date):
         date=target_date,
         **calendar_filters.get(selected_calendar, calendar_filters['current'])
     ).order_by('order', 'english_name')
+
+    # Gather a short preview of events on each calendar for this date
+    calendar_peeks = {}
+    for key in calendar_options:
+        qs = CalendarEvent.objects.filter(
+            date=target_date, **calendar_filters[key]
+        ).order_by('order', 'english_name')
+        preview_list = []
+        for event in qs:
+            if event.english_rank:
+                preview_list.append(f"{event.english_name} ({event.english_rank})")
+            else:
+                preview_list.append(event.english_name)
+        calendar_peeks[key] = "; ".join(preview_list)
     
     # Try to find biography information for each event
     events_with_biographies = []
@@ -251,6 +257,7 @@ def daily_view(request, date):
         'events_with_biographies': events_with_biographies,
         'selected_calendar': selected_calendar,
         'calendar_options': calendar_options,
+        'calendar_peeks': calendar_peeks,
         'prev_date': prev_date,
         'next_date': next_date,
         'current_liturgical_year': current_liturgical_year,
@@ -278,32 +285,30 @@ def calendar_view(request, year=None, month=None):
     # Handle calendar switching via POST
     if request.method == 'POST':
         selected_calendar = request.POST.get('selected_calendar')
-        if selected_calendar in ['catholic_1954', 'catholic_1962', 'current', 'ordinariate', 'acna', 'tec']:
+        if selected_calendar in ['catholic_1954', 'catholic_1962', 'current', 'acna', 'tec']:
             request.session['selected_calendar'] = selected_calendar
     
     # Get selected calendar from session or query parameter, default to Catholic (Current)
     selected_calendar = request.GET.get('calendar', request.session.get('selected_calendar', 'current'))
-    if selected_calendar in ['catholic_1954', 'catholic_1962', 'current', 'ordinariate', 'acna', 'tec']:
+    if selected_calendar in ['catholic_1954', 'catholic_1962', 'current', 'acna', 'tec']:
         request.session['selected_calendar'] = selected_calendar
     
     # Define calendar mappings
     calendar_options = {
-        'catholic_1954': 'Catholic (1954)',
-        'catholic_1962': 'Catholic (1962)', 
         'current': 'Catholic (Current)',
-        'ordinariate': 'Catholic (Anglican Ordinariate)',
-        'acna': 'ACNA (2019)',
-        'tec': 'TEC (2024)'
+        'catholic_1954': 'Catholic (1954)',
+        'catholic_1962': 'Catholic (1962)',
+        'tec': 'TEC (2024)',
+        'acna': 'ACNA (2019)'
     }
     
     # Filter mapping for database queries
     calendar_filters = {
-        'catholic_1954': {'calendar__icontains': '1954'},
-        'catholic_1962': {'calendar__icontains': '1960'},  
         'current': {'calendar__icontains': 'catholic'},
-        'ordinariate': {'calendar__icontains': 'ordinariate'},
-        'acna': {'calendar__icontains': 'acna'},
-        'tec': {'calendar__icontains': 'tec'}
+        'catholic_1954': {'calendar__icontains': '1954'},
+        'catholic_1962': {'calendar__icontains': '1960'},
+        'tec': {'calendar__icontains': 'tec'},
+        'acna': {'calendar__icontains': 'acna'}
     }
     
     # Get the calendar for the month (Sunday first)

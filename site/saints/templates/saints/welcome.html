@@ -10,7 +10,7 @@
         <meta http-equiv="Content-Language" content="en" />
         <!-- Description (for SEO) -->
         <meta name="description"
-              content="A comparison of liturgical calendars across different Christian traditions, including Catholic (traditional, current, and Anglican Ordinariate) and Anglican (Episcopal and ACNA)" />
+              content="A comparison of liturgical calendars across different Christian traditions, including several Catholic forms and Anglican (TEC and ACNA)" />
         <!-- Keywords (optional, not very important for modern SEO, but okay to include) -->
         <meta name="keywords"
               content="catholic, liturgical calendar, Anglican, Episcopal, ACNA, saints, feast days, Christian traditions" />
@@ -315,6 +315,10 @@
         <div id="layout-container" class="layout-container">
             <div id="controls" class="saints-controls">
                 <label>
+                    <input type="checkbox" class="column-toggle" value="current" checked />
+                    Catholic (Current)
+                </label>
+                <label>
                     <input type="checkbox" class="column-toggle" value="catholic_1954" checked />
                     Catholic (1954)
                 </label>
@@ -323,20 +327,12 @@
                     Catholic (1962)
                 </label>
                 <label>
-                    <input type="checkbox" class="column-toggle" value="current" checked />
-                    Catholic (Current)
-                </label>
-                <label>
-                    <input type="checkbox" class="column-toggle" value="ordinariate" checked />
-                    Catholic (Anglican Ordinariate)
+                    <input type="checkbox" class="column-toggle" value="tec" checked />
+                    TEC (2024)
                 </label>
                 <label>
                     <input type="checkbox" class="column-toggle" value="acna" checked />
                     ACNA (2019)
-                </label>
-                <label>
-                    <input type="checkbox" class="column-toggle" value="tec" checked />
-                    TEC (2024)
                 </label>
                 <input id="global-search" type="text" placeholder="Search all columns..." />
             </div>
@@ -417,6 +413,13 @@
           },
           {
             responsive: 1,
+            title: "Catholic (Current)",
+            field: "current",
+            formatter: "html",
+            minWidth: 165,
+          },
+          {
+            responsive: 1,
             title: "Catholic (1954)",
             field: "catholic_1954",
             formatter: "html",
@@ -431,15 +434,8 @@
           },
           {
             responsive: 1,
-            title: "Catholic (Current)",
-            field: "current",
-            formatter: "html",
-            minWidth: 165,
-          },
-          {
-            responsive: 1,
-            title: "Catholic (Anglican Ordinariate)",
-            field: "ordinariate",
+            title: "TEC (2024)",
+            field: "tec",
             formatter: "html",
             minWidth: 165,
           },
@@ -447,13 +443,6 @@
             responsive: 1,
             title: "ACNA (2019)",
             field: "acna",
-            formatter: "html",
-            minWidth: 165,
-          },
-          {
-            responsive: 1,
-            title: "TEC (2024)",
-            field: "tec",
             formatter: "html",
             minWidth: 165,
           },
@@ -477,12 +466,11 @@
           table.setFilter([
             [
               { field: "date", type: "like", value: query },
+              { field: "current", type: "like", value: query },
               { field: "catholic_1954", type: "like", value: query },
               { field: "catholic_1962", type: "like", value: query },
-              { field: "current", type: "like", value: query },
-              { field: "ordinariate", type: "like", value: query },
-              { field: "acna", type: "like", value: query },
               { field: "tec", type: "like", value: query },
+              { field: "acna", type: "like", value: query },
             ],
           ]);
         });
