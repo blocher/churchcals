@@ -461,7 +461,6 @@
         <!-- Calendar Switcher -->
         <div class="calendar-switcher">
             <div class="calendar-select-container">
-                <label class="form-label">Select Calendar Tradition:</label>
                 <div class="calendar-previews">
                     {% for key, label in calendar_options.items %}
                     <div class="calendar-preview{% if key == selected_calendar %} active{% endif %}" onclick="switchCalendar('{{ key }}')">
