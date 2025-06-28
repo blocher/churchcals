@@ -51,6 +51,41 @@
             flex-wrap: wrap;
         }
 
+        .calendar-previews {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            flex: 1;
+        }
+
+        .calendar-preview {
+            background: #f8fafc;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 8px 12px;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+        }
+
+        .calendar-preview:hover {
+            background: #e5e7eb;
+        }
+
+        .calendar-preview.active {
+            background: #6b7280;
+            color: white;
+            border-color: #6b7280;
+        }
+
+        .calendar-name {
+            font-weight: 600;
+        }
+
+        .calendar-feasts {
+            font-size: 0.85rem;
+            color: #374151;
+        }
+
         .calendar-select-container .form-label {
             margin-bottom: 0;
             white-space: nowrap;
@@ -371,10 +406,6 @@
                 align-items: stretch;
             }
 
-            .calendar-select-container .form-select {
-                min-width: auto;
-            }
-
             .tabs {
                 flex-direction: column;
             }
@@ -430,14 +461,14 @@
         <!-- Calendar Switcher -->
         <div class="calendar-switcher">
             <div class="calendar-select-container">
-                <label for="calendar-select" class="form-label">Select Calendar Tradition:</label>
-                <select id="calendar-select" class="form-select" onchange="switchCalendar(this.value)">
+                <div class="calendar-previews">
                     {% for key, label in calendar_options.items %}
-                    <option value="{{ key }}" {% if key == selected_calendar %}selected{% endif %}>
-                        {{ label }}
-                    </option>
+                    <div class="calendar-preview{% if key == selected_calendar %} active{% endif %}" onclick="switchCalendar('{{ key }}')">
+                        <div class="calendar-name">{{ label }}</div>
+                        <div class="calendar-feasts">{{ calendar_peeks|lookup:key|default:"" }}</div>
+                    </div>
                     {% endfor %}
-                </select>
+                </div>
             </div>
         </div>
 
@@ -502,7 +533,7 @@
 
                         <!-- Image Carousel Section -->
                         {% if event_data.biography.images.all %}
-                        <div class="content-section">
+                        <div class="content-section image-section" id="image-section-{{ forloop.counter0 }}">
                             <div class="section-title">Images</div>
                             <div class="image-carousel" id="carousel-{{ forloop.counter0 }}">
                                 <div class="carousel-container">
@@ -578,6 +609,33 @@
                         </div>
                         {% endif %}
 
+                        {% if event_data.biography.feast_description %}
+                        <div class="content-section">
+                            <div class="section-title">About this Feast</div>
+                            <div>
+                                {{ event_data.biography.feast_description.feast_description|linebreaks }}
+                            </div>
+                            {% if event_data.biography.feast_description.citations.all %}
+                            <div class="citations">
+                                <h4>Sources:</h4>
+                                <ul class="citation-list">
+                                    {% for citation in event_data.biography.feast_description.citations.all %}
+                                    <li>
+                                        {% if citation.url %}
+                                        <a href="{{ citation.url }}" target="_blank" rel="noopener noreferrer">
+                                            {{ citation.title|default:citation.citation }}
+                                        </a>
+                                        {% else %}
+                                        {{ citation.title|default:citation.citation }}
+                                        {% endif %}
+                                    </li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                            {% endif %}
+                        </div>
+                        {% endif %}
+
                         {% if event_data.biography.legend %}
                         <div class="content-section">
                             <div class="section-title">{{ event_data.biography.legend.title }}</div>
@@ -637,33 +695,6 @@
                         {% endfor %}
                         {% endif %}
 
-                        <!-- Feast Description Section -->
-                        {% if event_data.biography.feast_description %}
-                        <div class="content-section">
-                            <div class="section-title">About this Feast</div>
-                            <div>
-                                {{ event_data.biography.feast_description.feast_description|linebreaks }}
-                            </div>
-                            {% if event_data.biography.feast_description.citations.all %}
-                            <div class="citations">
-                                <h4>Sources:</h4>
-                                <ul class="citation-list">
-                                    {% for citation in event_data.biography.feast_description.citations.all %}
-                                    <li>
-                                        {% if citation.url %}
-                                        <a href="{{ citation.url }}" target="_blank" rel="noopener noreferrer">
-                                            {{ citation.title|default:citation.citation }}
-                                        </a>
-                                        {% else %}
-                                        {{ citation.title|default:citation.citation }}
-                                        {% endif %}
-                                    </li>
-                                    {% endfor %}
-                                </ul>
-                            </div>
-                            {% endif %}
-                        </div>
-                        {% endif %}
 
                         {% if event_data.biography.traditions.all %}
                         <div class="content-section">
@@ -838,10 +869,10 @@
 
         function finishCarouselSetup(carouselId, validImages) {
             if (validImages.length === 0) {
-                // Hide carousel if no valid images
-                const carousel = document.getElementById(`carousel-${carouselId}`);
-                if (carousel) {
-                    carousel.style.display = 'none';
+                // Hide entire image section if no valid images
+                const section = document.getElementById(`image-section-${carouselId}`);
+                if (section) {
+                    section.style.display = 'none';
                 }
                 return;
             }
@@ -920,14 +951,49 @@
         function goToImage(carouselId, index) {
             const carousel = carousels[carouselId];
             if (!carousel) return;
-            
+
             carousel.currentIndex = index;
             renderCarousel(carouselId);
+        }
+
+        function checkSourceLinks() {
+            const citationLinks = document.querySelectorAll('.citation-list a');
+            citationLinks.forEach(link => {
+                fetch(link.href, {method: 'HEAD'}).then(resp => {
+                    if (resp.status >= 400) {
+                        const span = document.createElement('span');
+                        span.textContent = link.textContent;
+                        link.replaceWith(span);
+                    }
+                }).catch(() => {
+                    const span = document.createElement('span');
+                    span.textContent = link.textContent;
+                    link.replaceWith(span);
+                });
+            });
+
+            const readMoreLinks = document.querySelectorAll('.writing-link a');
+            readMoreLinks.forEach(link => {
+                fetch(link.href, {method: 'HEAD'}).then(resp => {
+                    if (resp.status >= 400) {
+                        const parent = link.parentElement;
+                        if (parent) {
+                            parent.textContent = `Source: ${link.href}`;
+                        }
+                    }
+                }).catch(() => {
+                    const parent = link.parentElement;
+                    if (parent) {
+                        parent.textContent = `Source: ${link.href}`;
+                    }
+                });
+            });
         }
 
         // Initialize carousels when page loads
         document.addEventListener('DOMContentLoaded', function() {
             initializeCarousels();
+            checkSourceLinks();
         });
     </script>
 </body>

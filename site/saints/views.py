@@ -222,6 +222,20 @@ def daily_view(request, date):
         date=target_date,
         **calendar_filters.get(selected_calendar, calendar_filters['current'])
     ).order_by('order', 'english_name')
+
+    # Gather a short preview of events on each calendar for this date
+    calendar_peeks = {}
+    for key in calendar_options:
+        qs = CalendarEvent.objects.filter(
+            date=target_date, **calendar_filters[key]
+        ).order_by('order', 'english_name')
+        preview_list = []
+        for event in qs:
+            if event.english_rank:
+                preview_list.append(f"{event.english_name} ({event.english_rank})")
+            else:
+                preview_list.append(event.english_name)
+        calendar_peeks[key] = "; ".join(preview_list)
     
     # Try to find biography information for each event
     events_with_biographies = []
@@ -251,6 +265,7 @@ def daily_view(request, date):
         'events_with_biographies': events_with_biographies,
         'selected_calendar': selected_calendar,
         'calendar_options': calendar_options,
+        'calendar_peeks': calendar_peeks,
         'prev_date': prev_date,
         'next_date': next_date,
         'current_liturgical_year': current_liturgical_year,
