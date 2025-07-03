@@ -15,8 +15,16 @@ Including another URLconf
 """
 
 from django.contrib import admin
-from django.urls import path
-from saints.views import home_view, comparison_view, daily_view, calendar_view
+from django.urls import include, path
+from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
+
+from saints.api import BiographyViewSet, CalendarListView, DayView, LiturgicalYearView
+from saints.views import calendar_view, comparison_view, daily_view, home_view
+
+from rest_framework.routers import DefaultRouter
+
+router = DefaultRouter()
+router.register("biographies", BiographyViewSet, basename="biography")
 
 urlpatterns = [
     path("admin/", admin.site.urls),
@@ -26,4 +34,14 @@ urlpatterns = [
     path("day/<str:date>/", daily_view, name="daily_view"),
     path("calendar/", calendar_view, name="calendar_view"),
     path("calendar/<int:year>/<int:month>/", calendar_view, name="calendar_view_with_date"),
+
+    # API Endpoints
+    path("api/", include(router.urls)),
+    path("api/liturgical-year/<int:year>/<str:calendar>/", LiturgicalYearView.as_view(), name="liturgical-year"),
+    path("api/day/<str:date>/", DayView.as_view(), name="day-api"),
+    path("api/calendars/", CalendarListView.as_view(), name="calendar-list"),
+
+    # OpenAPI schema and docs
+    path("openapi.yaml", SpectacularAPIView.as_view(), name="openapi-schema"),
+    path("docs/", SpectacularSwaggerView.as_view(url_name="openapi-schema"), name="swagger-ui"),
 ]

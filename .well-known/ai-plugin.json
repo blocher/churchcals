@@ -1,0 +1,15 @@
+{
+  "schema_version": "v1",
+  "name_for_human": "Church Calendar API",
+  "name_for_model": "churchcals",
+  "description_for_human": "Access liturgical calendar events and biographies.",
+  "description_for_model": "Read-only API for liturgical calendar data including biographies and events.",
+  "auth": { "type": "none" },
+  "api": {
+    "type": "openapi",
+    "url": "https://example.com/openapi.yaml"
+  },
+  "logo_url": "https://example.com/logo.png",
+  "contact_email": "support@example.com",
+  "legal_info_url": "https://example.com/legal"
+}
