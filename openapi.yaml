@@ -17,15 +17,16 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/Biography'
-  /api/biographies/{id}/:
+  /api/biographies/{uuid}/:
     get:
       summary: Retrieve biography
       parameters:
         - in: path
-          name: id
+          name: uuid
           required: true
           schema:
-            type: integer
+            type: string
+            format: uuid
       responses:
         '200':
           description: A biography record
@@ -110,8 +111,9 @@ components:
     Biography:
       type: object
       properties:
-        id:
-          type: integer
+        uuid:
+          type: string
+          format: uuid
         name:
           type: string
         religion:

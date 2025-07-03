@@ -141,7 +141,7 @@ class BiographySerializer(serializers.ModelSerializer):
     class Meta:
         model = Biography
         fields = [
-            "id",
+            "uuid",
             "name",
             "religion",
             "calendar",

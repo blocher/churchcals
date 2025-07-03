@@ -7,7 +7,7 @@ This project provides a read‑only REST API for accessing liturgical calendar d
 | Path | Description |
 | --- | --- |
 | `/api/biographies/` | List biographies |
-| `/api/biographies/{id}/` | Retrieve a single biography |
+| `/api/biographies/{uuid}/` | Retrieve a single biography |
 | `/api/liturgical-year/{year}/{calendar}/` | Events for an entire liturgical year |
 | `/api/day/{date}/` | Events on a particular day grouped by calendar |
 | `/api/calendars/` | List available calendars |
