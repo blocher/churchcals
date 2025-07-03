@@ -1,13 +1,8 @@
-openapi: 3.1.0
-info:
-  title: Church Calendar API
-  version: '1.0'
-servers:
-  - url: https://saints.benlocher.com
 paths:
   /api/biographies/:
     get:
-      summary: List biographies
+      summary: List biographies and descriptions of saint days and feasts with reltated hagiography, bullet points, legend, traditions, foods, and other information
+      operationId: get_api_biographies_
       responses:
         '200':
           description: A list of biographies
@@ -17,9 +12,11 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/Biography'
+
   /api/biographies/{uuid}/:
     get:
-      summary: Retrieve biography
+      summary: Retrieve biography with reltated hagiography, bullet points, legend, traditions, foods, and other information
+      operationId: get_biographies__uuid__
       parameters:
         - in: path
           name: uuid
@@ -34,9 +31,11 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Biography'
+
   /api/liturgical-year/{year}/{calendar}/:
     get:
-      summary: Liturgical year events
+      summary: Liturgical year events, including a list of feasts, saint days, and other commemorations with their hagiography, bullet points, legend, traditions, foods, and other information, filtered by year and by church calendar
+      operationId: get__year__calendar_
       parameters:
         - in: path
           name: year
@@ -64,9 +63,11 @@ paths:
                     type: array
                     items:
                       $ref: '#/components/schemas/CalendarEvent'
+
   /api/day/{date}/:
     get:
-      summary: Events for a single day
+      summary: Liturgical year events, including a list of feasts, saint days, and other commemorations with their hagiography, bullet points, legend, traditions, foods, and other information, for a given day on all church calendars
+      operationId: get_day__date__
       parameters:
         - in: path
           name: date
@@ -91,13 +92,14 @@ paths:
                       type: array
                       items:
                         $ref: '#/components/schemas/CalendarEvent'
+
   /api/calendars/:
     get:
       summary: List calendars
+      operationId: get_api_calendars_
       responses:
         '200':
-          description: Available calendar identifiers
-          content:
+          description: Available church calendar identifiers
             application/json:
               schema:
                 type: object
@@ -106,191 +108,3 @@ paths:
                     type: array
                     items:
                       type: string
-components:
-  schemas:
-    Biography:
-      type: object
-      properties:
-        uuid:
-          type: string
-          format: uuid
-        name:
-          type: string
-        religion:
-          type: string
-        calendar:
-          type: string
-        short_descriptions:
-          type: object
-          properties:
-            one_sentence_description:
-              type: string
-            one_paragraph_description:
-              type: string
-        quote:
-          type: object
-          properties:
-            quote:
-              type: string
-            person:
-              type: string
-            date:
-              type: string
-        bible_verse:
-          type: object
-          properties:
-            citation:
-              type: string
-            text:
-              type: string
-            bible_version_abbreviation:
-              type: string
-            bible_version:
-              type: string
-            bible_version_year:
-              type: string
-        hagiography:
-          type: object
-          properties:
-            hagiography:
-              type: string
-        legend:
-          type: object
-          properties:
-            title:
-              type: string
-            legend:
-              type: string
-        bullet_points:
-          type: object
-          properties:
-            bullet_points:
-              type: array
-              items:
-                type: object
-                properties:
-                  text:
-                    type: string
-                  order:
-                    type: integer
-        traditions:
-          type: array
-          items:
-            type: object
-            properties:
-              tradition:
-                type: string
-              country_of_origin:
-                type: string
-              reason_associated_with_saint:
-                type: string
-              order:
-                type: integer
-        foods:
-          type: array
-          items:
-            type: object
-            properties:
-              food_name:
-                type: string
-              description:
-                type: string
-              country_of_origin:
-                type: string
-              reason_associated_with_saint:
-                type: string
-              order:
-                type: integer
-        writings:
-          type: array
-          items:
-            type: object
-            properties:
-              writing:
-                type: string
-              date:
-                type: string
-              title:
-                type: string
-              url:
-                type: string
-              author:
-                type: string
-              type:
-                type: string
-              order:
-                type: integer
-        images:
-          type: array
-          items:
-            type: object
-            properties:
-              url:
-                type: string
-              title:
-                type: string
-              author:
-                type: string
-              date:
-                type: string
-              order:
-                type: integer
-        feast_description:
-          type: object
-          properties:
-            feast_description:
-              type: string
-    CalendarEvent:
-      type: object
-      properties:
-        id:
-          type: integer
-        date:
-          type: string
-          format: date
-        month:
-          type: integer
-        day:
-          type: integer
-        year:
-          type: integer
-        latin_name:
-          type: string
-        english_name:
-          type: string
-        english_translation:
-          type: string
-        color:
-          type: string
-        latin_notes:
-          type: string
-        english_notes:
-          type: string
-        order:
-          type: integer
-        is_primary_for_day:
-          type: boolean
-        temporale_or_sanctorale:
-          type: string
-        latin_rank:
-          type: string
-        english_rank:
-          type: string
-        is_person:
-          type: boolean
-        saint_name:
-          type: string
-        saint_category:
-          type: string
-        saint_categories:
-          type: object
-        saint_singular_or_plural:
-          type: string
-        calendar:
-          type: string
-        subcalendar:
-          type: string
-        season:
-          type: string
-        biography:
-          $ref: '#/components/schemas/Biography'
