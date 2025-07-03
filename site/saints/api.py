@@ -25,6 +25,39 @@ from saints.models import (
 )
 from saints.views import first_sunday_of_advent
 
+# Common select_related and prefetch_related lookups for Biography objects
+BIOGRAPHY_SELECT = [
+    "short_descriptions",
+    "quote",
+    "bible_verse",
+    "hagiography",
+    "legend",
+    "bullet_points",
+    "feast_description",
+]
+
+BIOGRAPHY_PREFETCH = [
+    "hagiography__citations",
+    "legend__citations",
+    "bullet_points__bullet_points",
+    "bullet_points__citations",
+    "traditions",
+    "foods",
+    "writings",
+    "images",
+    "feast_description__citations",
+]
+
+# Base queryset for CalendarEvent that pulls in biography and related objects
+CALENDAR_EVENT_QUERYSET = (
+    CalendarEvent.objects.select_related(
+        "biography",
+        *[f"biography__{rel}" for rel in BIOGRAPHY_SELECT],
+    ).prefetch_related(
+        *[f"biography__{rel}" for rel in BIOGRAPHY_PREFETCH]
+    )
+)
+
 
 class HagiographyCitationSerializer(serializers.ModelSerializer):
     class Meta:
@@ -196,29 +229,7 @@ class CalendarEventSerializer(serializers.ModelSerializer):
 class BiographyViewSet(viewsets.ReadOnlyModelViewSet):
     """Retrieve biographies with all related data."""
 
-    queryset = (
-        Biography.objects.all()
-        .select_related(
-            "short_descriptions",
-            "quote",
-            "bible_verse",
-            "hagiography",
-            "legend",
-            "bullet_points",
-            "feast_description",
-        )
-        .prefetch_related(
-            "hagiography__citations",
-            "legend__citations",
-            "bullet_points__bullet_points",
-            "bullet_points__citations",
-            "traditions",
-            "foods",
-            "writings",
-            "images",
-            "feast_description__citations",
-        )
-    )
+    queryset = Biography.objects.all().select_related(*BIOGRAPHY_SELECT).prefetch_related(*BIOGRAPHY_PREFETCH)
     serializer_class = BiographySerializer
 
 
@@ -238,10 +249,10 @@ class LiturgicalYearView(APIView):
         start = first_sunday_of_advent(year)
         end = first_sunday_of_advent(year + 1) - timedelta(days=1)
         filters = self.calendar_filters.get(calendar, self.calendar_filters["current"])
-        events = CalendarEvent.objects.filter(date__range=(start, end), **filters).order_by(
-            "date",
-            "order",
-            "english_name",
+        events = (
+            CALENDAR_EVENT_QUERYSET
+            .filter(date__range=(start, end), **filters)
+            .order_by("date", "order", "english_name")
         )
         serializer = CalendarEventSerializer(events, many=True)
         return Response({"calendar": calendar, "year": year, "events": serializer.data})
@@ -255,7 +266,11 @@ class DayView(APIView):
     def get(self, request, date):
         events_by_calendar = {}
         for key, flt in self.calendar_filters.items():
-            day_events = CalendarEvent.objects.filter(date=date, **flt).order_by("order", "english_name")
+            day_events = (
+                CALENDAR_EVENT_QUERYSET
+                .filter(date=date, **flt)
+                .order_by("order", "english_name")
+            )
             events_by_calendar[key] = CalendarEventSerializer(day_events, many=True).data
         return Response({"date": date, "calendars": events_by_calendar})
 
