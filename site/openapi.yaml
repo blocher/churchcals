@@ -1,4 +1,106 @@
-  /api/calendars/:
+openapi: 3.1.0
+info:
+  title: Saints API
+  version: 1.0.0
+  description: API for biographies, liturgical year events, and calendars
+servers:
+  - url: https://saints.benlocher.com/api
+paths:
+  /biographies/:
+    get:
+      summary: List biographies and descriptions of saint days and feasts with related hagiography, bullet points, legend, traditions, foods, and other information
+      operationId: get_api_biographies_
+      responses:
+        '200':
+          description: A list of biographies
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Biography'
+
+  /biographies/{uuid}/:
+    get:
+      summary: Retrieve biography with related hagiography, bullet points, legend, traditions, foods, and other information
+      operationId: get_biographies__uuid__
+      parameters:
+        - in: path
+          name: uuid
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: A biography record
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Biography'
+
+  /liturgical-year/{year}/{calendar}/:
+    get:
+      summary: Liturgical year events, including a list of feasts, saint days, and other commemorations with their hagiography, bullet points, legend, traditions, foods, and other information, filtered by year and by church calendar
+      operationId: get__year__calendar_
+      parameters:
+        - in: path
+          name: year
+          required: true
+          schema:
+            type: integer
+        - in: path
+          name: calendar
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Events for the year
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  calendar:
+                    type: string
+                  year:
+                    type: integer
+                  events:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/CalendarEvent'
+
+  /day/{date}/:
+    get:
+      summary: Liturgical year events, including a list of feasts, saint days, and other commemorations with their hagiography, bullet points, legend, traditions, foods, and other information, for a given day on all church calendars
+      operationId: get_day__date__
+      parameters:
+        - in: path
+          name: date
+          required: true
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: Daily events grouped by calendar
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  date:
+                    type: string
+                    format: date
+                  calendars:
+                    type: object
+                    additionalProperties:
+                      type: array
+                      items:
+                        $ref: '#/components/schemas/CalendarEvent'
+
+  /calendars/:
     get:
       summary: List calendars
       operationId: get_api_calendars_
@@ -14,3 +116,46 @@
                     type: array
                     items:
                       type: string
+
+components:
+  schemas:
+    Biography:
+      type: object
+      properties:
+        uuid:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type: string
+        hagiography:
+          type: string
+        bullet_points:
+          type: array
+          items:
+            type: string
+        legend:
+          type: string
+        traditions:
+          type: string
+        foods:
+          type: string
+        other_information:
+          type: string
+    CalendarEvent:
+      type: object
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        date:
+          type: string
+          format: date
+        description:
+          type: string
+        type:
+          type: string
+        biography:
+          $ref: '#/components/schemas/Biography'
