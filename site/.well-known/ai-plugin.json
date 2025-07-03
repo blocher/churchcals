@@ -4,12 +4,14 @@
   "name_for_model": "churchcals",
   "description_for_human": "Access liturgical calendar events and biographies.",
   "description_for_model": "Read-only API for liturgical calendar data including biographies and events.",
-  "auth": { "type": "none" },
+  "auth": {
+    "type": "none"
+  },
   "api": {
     "type": "openapi",
-    "url": "https://example.com/openapi.yaml"
+    "url": "https://saints.benlocher.com/openapi.yaml"
   },
-  "logo_url": "https://example.com/logo.png",
+  "logo_url": "https://saints.benlocher.com/logo.png",
   "contact_email": "support@example.com",
-  "legal_info_url": "https://example.com/legal"
+  "legal_info_url": "https://saints.benlocher.com/"
 }
