@@ -3,7 +3,7 @@ info:
   title: Church Calendar API
   version: '1.0'
 servers:
-  - url: https://example.com
+  - url: https://saints.benlocher.com
 paths:
   /api/biographies/:
     get:
