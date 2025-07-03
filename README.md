@@ -12,7 +12,7 @@ This project provides a read‑only REST API for accessing liturgical calendar d
 | `/api/day/{date}/` | Events on a particular day grouped by calendar |
 | `/api/calendars/` | List available calendars |
 
-Interactive documentation is available at `/docs/` when the server is running.
+Interactive documentation is available at `/api/docs/` when the server is running.
 
 ## OpenAI / ChatGPT, Gemini and Claude Integration
 
@@ -33,4 +33,4 @@ python manage.py migrate
 python manage.py runserver
 ```
 
-Then open [http://localhost:8000/docs/](http://localhost:8000/docs/) to browse the API.
+Then open [http://localhost:8000/api/docs/](http://localhost:8000/api/docs/) to browse the API.

@@ -196,7 +196,29 @@ class CalendarEventSerializer(serializers.ModelSerializer):
 class BiographyViewSet(viewsets.ReadOnlyModelViewSet):
     """Retrieve biographies with all related data."""
 
-    queryset = Biography.objects.all()
+    queryset = (
+        Biography.objects.all()
+        .select_related(
+            "short_descriptions",
+            "quote",
+            "bible_verse",
+            "hagiography",
+            "legend",
+            "bullet_points",
+            "feast_description",
+        )
+        .prefetch_related(
+            "hagiography__citations",
+            "legend__citations",
+            "bullet_points__bullet_points",
+            "bullet_points__citations",
+            "traditions",
+            "foods",
+            "writings",
+            "images",
+            "feast_description__citations",
+        )
+    )
     serializer_class = BiographySerializer
 
 
