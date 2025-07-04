@@ -20,7 +20,7 @@ from django.conf import settings
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
 from saints.api import BiographyViewSet, CalendarListView, DayView, LiturgicalYearView
-from saints.views import calendar_view, comparison_view, daily_view, home_view
+from saints.views import calendar_view, comparison_view, daily_view, home_view, mcp_chat_view
 
 from rest_framework.routers import DefaultRouter
 from rest_framework.views import APIView
@@ -58,6 +58,7 @@ urlpatterns = [
     path("day/<str:date>/", daily_view, name="daily_view"),
     path("calendar/", calendar_view, name="calendar_view"),
     path("calendar/<int:year>/<int:month>/", calendar_view, name="calendar_view_with_date"),
+    path("mcp-chat/", mcp_chat_view, name="mcp_chat"),
 
     # API Endpoints
     path("api/", APIRootView.as_view(), name="api-root"),

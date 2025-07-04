@@ -3,11 +3,17 @@ from collections import defaultdict
 from datetime import date, timedelta
 
 from django.shortcuts import render, redirect
-from django.http import Http404, HttpResponseRedirect
+from django.http import Http404, HttpResponseRedirect, JsonResponse
 from django.urls import reverse
 from django.utils import timezone
 from saints.models import CalendarEvent
+from django.views.decorators.csrf import csrf_exempt
+from django.conf import settings
+from openai import OpenAI
+import json
 import calendar
+
+client = OpenAI(api_key=settings.OPENAI_API_KEY)
 
 
 def first_sunday_of_advent(year):
@@ -377,3 +383,36 @@ def calendar_view(request, year=None, month=None):
     }
     
     return render(request, "saints/calendar.html", context)
+
+
+@csrf_exempt
+def mcp_chat_view(request):
+    """Simple chat endpoint that proxies messages to OpenAI."""
+    if request.method != "POST":
+        return JsonResponse({"error": "Invalid request"}, status=405)
+
+    try:
+        data = json.loads(request.body.decode())
+    except Exception:
+        return JsonResponse({"error": "Invalid payload"}, status=400)
+
+    message = data.get("message", "").strip()
+    if not message:
+        return JsonResponse({"error": "No message provided"}, status=400)
+
+    system_prompt = (
+        "You are the Liturgical Companion. Use the Church Calendar API "
+        "described at https://saints.benlocher.com/openapi.yaml to answer "
+        "questions. You may also reference the PDF library configured on the server."
+    )
+
+    completion = client.chat.completions.create(
+        model="gpt-4o",
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": message},
+        ],
+    )
+
+    reply = completion.choices[0].message.content.strip()
+    return JsonResponse({"reply": reply})
