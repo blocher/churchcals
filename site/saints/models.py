@@ -172,7 +172,9 @@ class CalendarEvent(models.Model):
     calendar = models.CharField(max_length=255, blank=True, null=True)
     subcalendar = models.CharField(max_length=255, blank=True, null=True)
     season = models.CharField(max_length=255, blank=True, null=True)
-    biography = models.ForeignKey('Biography', null=True, blank=True, on_delete=models.SET_NULL, related_name='calendar_events')
+    biography = models.ForeignKey(
+        "Biography", null=True, blank=True, on_delete=models.SET_NULL, related_name="calendar_events"
+    )
 
     def save(self, *args, **kwargs):
         if self.year and self.month and self.day and not self.date:
@@ -277,7 +279,7 @@ class WritingModel(models.Model):
     title = models.CharField(max_length=256)
     url = models.URLField(null=True, blank=True)
     author = models.CharField(max_length=256, null=True, blank=True)
-    type = models.CharField(max_length=32, choices=[('by', 'By Saint'), ('about', 'About Saint')])
+    type = models.CharField(max_length=32, choices=[("by", "By Saint"), ("about", "About Saint")])
     order = models.PositiveIntegerField(default=0)
 
 
@@ -295,3 +297,34 @@ class FeastDescriptionModel(models.Model):
     feast_description = models.TextField()
     citations = models.ManyToManyField(HagiographyCitationModel, blank=True, related_name="feast_descriptions")
 
+
+class Podcast(BaseModel):
+    slug = models.SlugField(unique=True)
+    religion = models.CharField(max_length=64)
+    title = models.CharField(max_length=256)
+    image = models.ImageField(upload_to="podcast_images/", null=True, blank=True)
+    description = models.TextField(null=True, blank=True)
+    link = models.URLField(default="https://saints.benlocher.com")
+
+    def __str__(self):
+        return self.title
+
+
+class PodcastEpisode(BaseModel):
+    slug = models.SlugField(unique=True)
+    date = models.DateField(help_text="Date this episode is for")
+    published_date = models.DateTimeField(null=True, blank=True)
+    podcast = models.ForeignKey(Podcast, on_delete=models.CASCADE, related_name="episodes")
+    file_name = models.CharField(max_length=256)
+    url = models.URLField()
+    episode_title = models.CharField(max_length=512)
+    episode_subtitle = models.CharField(max_length=512)
+    episode_short_description = models.TextField()
+    episode_long_description = models.TextField()
+    episode_full_text = models.TextField()
+
+    class Meta:
+        ordering = ["-date"]
+
+    def __str__(self):
+        return self.episode_title

@@ -1,87 +1,103 @@
-from django.contrib import admin
 import nested_admin
+from django.contrib import admin
+
+from .models import FeastDescriptionModel  # Added import
 from .models import (
-    Biography,
-    ShortDescriptionsModel,
-    QuoteModel,
     BibleVerseModel,
-    HagiographyModel,
-    HagiographyCitationModel,
-    LegendModel,
-    BulletPointsModel,
+    Biography,
     BulletPoint,
-    TraditionModel,
+    BulletPointsModel,
     FoodModel,
-    WritingModel,
+    HagiographyCitationModel,
+    HagiographyModel,
     ImageModel,
-    FeastDescriptionModel,  # Added import
+    LegendModel,
+    Podcast,
+    PodcastEpisode,
+    QuoteModel,
+    ShortDescriptionsModel,
+    TraditionModel,
+    WritingModel,
 )
+
 
 class ShortDescriptionsInline(nested_admin.NestedStackedInline):
     model = ShortDescriptionsModel
     can_delete = False
     extra = 0
 
+
 class QuoteInline(nested_admin.NestedStackedInline):
     model = QuoteModel
     can_delete = False
     extra = 0
+
 
 class BibleVerseInline(nested_admin.NestedStackedInline):
     model = BibleVerseModel
     can_delete = False
     extra = 0
 
+
 class HagiographyInline(nested_admin.NestedStackedInline):
     model = HagiographyModel
     can_delete = False
     extra = 0
-    filter_horizontal = ('citations',)
+    filter_horizontal = ("citations",)
+
 
 class LegendInline(nested_admin.NestedStackedInline):
     model = LegendModel
     can_delete = False
     extra = 0
-    filter_horizontal = ('citations',)
+    filter_horizontal = ("citations",)
+
 
 class BulletPointNestedInline(nested_admin.NestedTabularInline):
     model = BulletPoint
     extra = 0
     ordering = ["order"]
 
+
 class BulletPointsNestedInline(nested_admin.NestedStackedInline):
     model = BulletPointsModel
     can_delete = False
     extra = 0
-    filter_horizontal = ('citations',)
+    filter_horizontal = ("citations",)
     show_change_link = True
     inlines = [BulletPointNestedInline]
+
 
 class TraditionInline(nested_admin.NestedTabularInline):
     model = TraditionModel
     extra = 0
     ordering = ["order"]
 
+
 class FoodInline(nested_admin.NestedTabularInline):
     model = FoodModel
     extra = 0
     ordering = ["order"]
+
 
 class WritingInline(nested_admin.NestedTabularInline):
     model = WritingModel
     extra = 0
     ordering = ["order"]
 
+
 class ImageInline(nested_admin.NestedTabularInline):
     model = ImageModel
     extra = 0
     ordering = ["order"]
 
+
 class FeastDescriptionInline(nested_admin.NestedStackedInline):
     model = FeastDescriptionModel
     can_delete = False
     extra = 0
-    filter_horizontal = ('citations',)
+    filter_horizontal = ("citations",)
+
 
 class BiographyAdmin(nested_admin.NestedModelAdmin):
     inlines = [
@@ -98,5 +114,25 @@ class BiographyAdmin(nested_admin.NestedModelAdmin):
         FeastDescriptionInline,
     ]
 
+
 admin.site.register(Biography, BiographyAdmin)
 admin.site.register(FeastDescriptionModel)
+
+
+class PodcastEpisodeInline(nested_admin.NestedTabularInline):
+    model = PodcastEpisode
+    extra = 0
+    ordering = ["-date"]
+
+
+class PodcastAdmin(nested_admin.NestedModelAdmin):
+    inlines = [PodcastEpisodeInline]
+
+
+@admin.register(PodcastEpisode)
+class PodcastEpisodeAdmin(admin.ModelAdmin):
+    list_filter = ["date"]
+    ordering = ["-date"]
+
+
+admin.site.register(Podcast, PodcastAdmin)

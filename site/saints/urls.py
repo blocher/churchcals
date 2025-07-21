@@ -14,18 +14,15 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 
-from django.contrib import admin
-from django.urls import include, path
 from django.conf import settings
+from django.contrib import admin
+from django.urls import include, path, reverse
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
-
-from saints.api import BiographyViewSet, CalendarListView, DayView, LiturgicalYearView
-from saints.views import calendar_view, comparison_view, daily_view, home_view
-
+from rest_framework.response import Response
 from rest_framework.routers import DefaultRouter
 from rest_framework.views import APIView
-from rest_framework.response import Response
-from django.urls import reverse
+from saints.api import BiographyViewSet, CalendarListView, DayView, LiturgicalYearView
+from saints.views import calendar_view, comparison_view, daily_view, home_view, podcast_feed
 
 router = DefaultRouter()
 router.include_root_view = False
@@ -37,7 +34,7 @@ class APIRootView(APIView):
 
     def get(self, request):
         base = request.build_absolute_uri()
-        base = base.rstrip('/') + '/'
+        base = base.rstrip("/") + "/"
         return Response(
             {
                 "biographies": base + "biographies/",
@@ -50,6 +47,7 @@ class APIRootView(APIView):
             }
         )
 
+
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("", home_view, name="home"),
@@ -58,14 +56,13 @@ urlpatterns = [
     path("day/<str:date>/", daily_view, name="daily_view"),
     path("calendar/", calendar_view, name="calendar_view"),
     path("calendar/<int:year>/<int:month>/", calendar_view, name="calendar_view_with_date"),
-
+    path("podcast/<slug:slug>/rss/", podcast_feed, name="podcast-feed"),
     # API Endpoints
     path("api/", APIRootView.as_view(), name="api-root"),
     path("api/", include(router.urls)),
     path("api/liturgical-year/<int:year>/<str:calendar>/", LiturgicalYearView.as_view(), name="liturgical-year"),
     path("api/day/<str:date>/", DayView.as_view(), name="day-api"),
     path("api/calendars/", CalendarListView.as_view(), name="calendar-list"),
-
     # OpenAPI schema and docs
     path("openapi.yaml", SpectacularAPIView.as_view(), name="openapi-schema"),
     path("api/docs/", SpectacularSwaggerView.as_view(url_name="openapi-schema"), name="swagger-ui"),

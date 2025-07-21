@@ -32,7 +32,7 @@ SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "django-insecure-2^@xd@@2sm!e9qk4t$k
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv("DEBUG", "False").lower() in ("true", "1", "yes")
 
-ALLOWED_HOSTS = ['127.0.0.1', 'localhost', 'saints.benlocher.com']
+ALLOWED_HOSTS = ["127.0.0.1", "localhost", "saints.benlocher.com"]
 
 
 # Application definition
@@ -49,6 +49,7 @@ INSTALLED_APPS = [
     "django_extensions",
     "rest_framework",
     "drf_spectacular",
+    "django_cron",
     "saints",
 ]
 
@@ -130,9 +131,9 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/4.0/howto/static-files/
 
 STATIC_URL = "static/"
-STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
-MEDIA_ROOT = os.path.join(BASE_DIR, 'mediafiles')
-MEDIA_URL = '/media/'
+STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
+MEDIA_ROOT = os.path.join(BASE_DIR, "mediafiles")
+MEDIA_URL = "/media/"
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.0/ref/settings/#default-auto-field
 
@@ -158,3 +159,8 @@ if DEBUG:
     INSTALLED_APPS.append("debug_toolbar")
     MIDDLEWARE.insert(0, "debug_toolbar.middleware.DebugToolbarMiddleware")
     INTERNAL_IPS = ["127.0.0.1"]
+
+# django-cron settings
+CRON_CLASSES = [
+    "saints.cron.CreatePodcastCronJob",
+]
