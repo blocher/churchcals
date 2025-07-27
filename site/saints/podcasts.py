@@ -306,7 +306,8 @@ def generate_podcast_script(structured_bios: List[StructuredBioModel], target_da
         "Mention any traditions associated with the feast or saint with genuine interest.\n"
         "\n"
         "Each episode should:\n"
-        "- Begin with the date and the names of all commemorated saints and feasts, including which calendar(s) they are on, general Catholic, traditional (1954 and/or 1960), Ordinariate\n" 
+        "- Begin with the date and the names of all commemorated saints and feasts\n"
+        "- If the feasts appears exclusively on a calendar(s) other than the current Catholic calendar, include which calendar(s) they are on: traditional (1954), traiditonal (1960), Anglican Ordinariate\n" 
         "- Include 1–2 standout stories or traditions told with engaging detail.\n"
         "- End with a practical idea for how listeners might commemorate the day, presented warmly.\n"
         "\n"
@@ -324,7 +325,7 @@ def generate_podcast_script(structured_bios: List[StructuredBioModel], target_da
         "- [with interest] for intriguing details\n"
                  "Use these naturally to enhance the conversational flow without overdoing it.\n"
          "\n"
-         "Important: Do not use cliche phrases, such as 'Picture this'"
+         "Important: Do not use cliche phrases, such as 'Picture this' or 'Imagine this'"
         "\n"
         "IMPORTANT: NEVER mention show notes, episode descriptions, or any meta-references to the podcast format. Keep the conversation natural and immersive.\n"
         "\n"
@@ -341,6 +342,7 @@ def generate_podcast_script(structured_bios: List[StructuredBioModel], target_da
     # Add original biography data if provided
     if original_bios:
         data_payload["original_biography_data"] = original_bios
+        
 
     result = create_structured_completion(
         client=client,
