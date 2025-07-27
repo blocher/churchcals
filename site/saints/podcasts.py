@@ -886,8 +886,7 @@ def generate_episode_metadata(structured, script, target_date, audio_path):
     context = {
         "date": pretty_date,
         "saints_and_feasts": episode_names,
-        "structured_bios": [s.model_dump() if hasattr(s, 'model_dump') else dict(s) for s in structured],
-        "script": script[:10],  # Only first 10 lines for brevity
+        "script": script,
         "day_url": day_url
     }
     # --- Generate cleaned-up, deduplicated episode title ---
@@ -917,7 +916,7 @@ def generate_episode_metadata(structured, script, target_date, audio_path):
         prompt = (
             "Given the following context for a Catholic podcast episode, generate:\n"
             "1. A captivating subtitle (max 100 chars)\n"
-            "2. A very brief, plain text short description (max 200 chars, suitable for podcast feeds, must start with the provided link)\n"
+            "2. A very brief, plain text short description (max 200 chars, suitable for podcast feeds\n"
             "3. A long description (for <content:encoded>, suitable for RSS, HTML allowed, must start with the provided link, and include links to referenced items or further reading if present)\n"
             "Return only a JSON object with keys: subtitle, short_description, long_description.\n"
             "Be creative, engaging, and family-friendly.\n"
@@ -1024,8 +1023,8 @@ def create_full_podcast(target_date: date) -> str:
     result = generate_tts_and_merge(script, target_date)
 
     # Generate metadata and create PodcastEpisode
-    # metadata = generate_episode_metadata(structured, script, target_date, result)
-    # create_podcast_episode(metadata)
+    metadata = generate_episode_metadata(structured, script, target_date, result)
+    create_podcast_episode(metadata)
 
     print("[END] create_full_podcast")
     return result
