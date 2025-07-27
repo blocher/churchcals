@@ -121,6 +121,7 @@ def create_structured_completion(client, model, messages, response_format_model)
         return content
 
 
+import datetime
 import os
 import io
 import json
@@ -136,6 +137,8 @@ from elevenlabs.client import ElevenLabs
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
 from django.conf import settings
+from django.utils import timezone
+from django.utils.timezone import make_aware, get_default_timezone
 from saints.models import CalendarEvent
 from saints.api import BiographySerializer
 from django.utils.text import slugify
@@ -969,8 +972,40 @@ def generate_episode_metadata(structured, script, target_date, audio_path):
         "episode_long_description": long_desc,
         "episode_full_text": full_text,
     }
+    
+def create_publish_date(publish_date: datetime.datetime = None):
+    """
+    Create a publish date for a podcast episode.
+    Starts with the publish_date passed, or if none, timezone.now(),
+    then changes the time to 5 PM Eastern time (respecting DST if appropriate),
+    then sets it as a UTC timezone, adjusting time.
+    """
+    from zoneinfo import ZoneInfo
+    
+    # Start with the provided date or current time
+    if publish_date:
+        # If publish_date is naive, make it timezone-aware
+        if timezone.is_naive(publish_date):
+            publish_date = make_aware(publish_date)
+        base_datetime = publish_date
+    else:
+        base_datetime = timezone.now()
+    
+    # Get Eastern timezone (handles DST automatically)
+    eastern_tz = ZoneInfo('America/New_York')
+    
+    # Convert to Eastern time
+    eastern_time = base_datetime.astimezone(eastern_tz)
+    
+    # Set the time to 5 PM Eastern
+    eastern_5pm = eastern_time.replace(hour=17, minute=0, second=0, microsecond=0)
+    
+    # Convert back to UTC
+    utc_datetime = eastern_5pm.astimezone(ZoneInfo('UTC'))
+    
+    return utc_datetime
 
-def create_podcast_episode(metadata):
+def create_podcast_episode(metadata, publish_date: datetime.datetime = None):
     """
     Find the most recent Podcast with religion='catholic' and create a PodcastEpisode with the given metadata.
     """
@@ -993,6 +1028,10 @@ def create_podcast_episode(metadata):
                 duration = int(audio.info.length)
             except Exception:
                 duration = None
+    
+    # Create the publish date
+    final_publish_date = create_publish_date(publish_date)
+    
     PodcastEpisode.objects.create(
         slug=metadata["slug"],
         date=metadata["date"],
@@ -1005,10 +1044,11 @@ def create_podcast_episode(metadata):
         episode_full_text=metadata["episode_full_text"],
         duration=duration,
         episode_number=episode_number,
+        published_date=final_publish_date,
     )
 
 
-def create_full_podcast(target_date: date) -> str:
+def create_full_podcast(target_date: date, publish_date: datetime.datetime = None) -> str:
     """
     Create a full podcast for the given date. target_date must be a datetime.date object.
     """
@@ -1024,7 +1064,7 @@ def create_full_podcast(target_date: date) -> str:
 
     # Generate metadata and create PodcastEpisode
     metadata = generate_episode_metadata(structured, script, target_date, result)
-    create_podcast_episode(metadata)
+    create_podcast_episode(metadata, publish_date)
 
     print("[END] create_full_podcast")
     return result

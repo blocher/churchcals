@@ -374,7 +374,7 @@ def podcast_feed(request, slug):
         fe.id(episode.slug)
         fe.title(episode.episode_title)
         fe.description(episode.episode_short_description)
-        fe.pubDate(episode.published_date or timezone.now())
+        fe.pubDate(episode.published_date or episode.created)
         episode_url = request.build_absolute_uri(settings.MEDIA_URL + 'podcasts/' + episode.file_name)
         fe.link(href=episode_url)
         fe.guid(episode.slug, permalink=False)
