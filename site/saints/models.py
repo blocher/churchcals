@@ -36,17 +36,17 @@ class Saint(BaseModel):
     day = models.IntegerField(
         help_text="Day of the month the saint is commemorated on the calendar as an integer from 1 to 31"
     )
-    name = models.CharField(max_length=512, help_text="Name of the saint")
+    name = models.CharField(max_length=2500, help_text="Name of the saint")
     canonization_status = models.CharField(
         null=True,
         blank=True,
-        max_length=512,
+        max_length=2500,
         help_text="Title of the saint, such as Saint (St), Saints (SS), Blessed (Bd), Blesseds (BB), Venerable, etc.",
     )
     category = models.CharField(
         null=True,
         blank=True,
-        max_length=512,
+        max_length=2500,
         help_text="Category or categories of the saint such as Martyr, Confessor, Virgin, King, Queen, Penitent, Bishop, Archbishop, etc.",
     )
     biography_or_hagiography = models.TextField(help_text="Biography or Hagiography of the saint")
@@ -65,7 +65,7 @@ class Saint(BaseModel):
     year_of_death = models.CharField(
         null=True,
         blank=True,
-        max_length=512,
+        max_length=2500,
         help_text="Year of death often in the format 'A.D. 700', but can also be more generic such as 'Seventh Century' or a range",
     )
 
@@ -151,9 +151,9 @@ class CalendarEvent(models.Model):
     month = models.PositiveSmallIntegerField()
     day = models.PositiveSmallIntegerField()
     year = models.PositiveSmallIntegerField()
-    latin_name = models.CharField(max_length=512, blank=True, null=True)
-    english_name = models.CharField(max_length=512, blank=True, null=True)
-    english_translation = models.CharField(max_length=512, blank=True, null=True)
+    latin_name = models.CharField(max_length=2500, blank=True, null=True)
+    english_name = models.CharField(max_length=2500, blank=True, null=True)
+    english_translation = models.CharField(max_length=2500, blank=True, null=True)
     color = models.CharField(max_length=255, blank=True, null=True)
     latin_notes = models.CharField(max_length=255, blank=True, null=True)
     english_notes = models.CharField(max_length=255, blank=True, null=True)
@@ -163,8 +163,8 @@ class CalendarEvent(models.Model):
     latin_rank = models.CharField(max_length=255, blank=True, null=True)
     english_rank = models.CharField(max_length=255, blank=True, null=True)
     is_person = models.BooleanField(default=False)
-    saint_name = models.CharField(max_length=512, blank=True, null=True)
-    saint_category = models.CharField(max_length=512, blank=True, null=True)
+    saint_name = models.CharField(max_length=2500, blank=True, null=True)
+    saint_category = models.CharField(max_length=2500, blank=True, null=True)
     saint_categories = models.JSONField(blank=True, null=True)
     saint_singular_or_plural = models.CharField(
         max_length=255, blank=True, null=True, choices=[("singular", "Singular"), ("plural", "Plural")]
@@ -190,7 +190,7 @@ class CalendarEvent(models.Model):
 
 
 class Biography(BaseModel):
-    name = models.CharField(max_length=512)
+    name = models.CharField(max_length=2500)
     religion = models.CharField(max_length=64)
     calendar = models.CharField(max_length=64)
 
@@ -207,24 +207,24 @@ class ShortDescriptionsModel(models.Model):
 class QuoteModel(models.Model):
     biography = models.OneToOneField(Biography, on_delete=models.CASCADE, related_name="quote")
     quote = models.TextField()
-    person = models.CharField(max_length=256)
-    date = models.CharField(max_length=128)
+    person = models.CharField(max_length=2500)
+    date = models.CharField(max_length=2500)
 
 
 class BibleVerseModel(models.Model):
     biography = models.OneToOneField(Biography, on_delete=models.CASCADE, related_name="bible_verse")
-    citation = models.CharField(max_length=256)
+    citation = models.CharField(max_length=2500)
     text = models.TextField()
     bible_version_abbreviation = models.CharField(max_length=32)
-    bible_version = models.CharField(max_length=128)
+    bible_version = models.CharField(max_length=2500)
     bible_version_year = models.CharField(max_length=8)
 
 
 class HagiographyCitationModel(models.Model):
     citation = models.TextField()
-    url = models.URLField(null=True, blank=True)
+    url = models.URLField(max_length=2500, null=True, blank=True)
     date_accessed = models.CharField(max_length=64, null=True, blank=True)
-    title = models.CharField(max_length=256, null=True, blank=True)
+    title = models.CharField(max_length=2500, null=True, blank=True)
 
     def __str__(self):
         url_part = f" - { self.url }" if self.url else ""
@@ -240,7 +240,7 @@ class HagiographyModel(models.Model):
 class LegendModel(models.Model):
     biography = models.OneToOneField(Biography, on_delete=models.CASCADE, related_name="legend")
     legend = models.TextField()
-    title = models.CharField(max_length=256)
+    title = models.CharField(max_length=2500)
     citations = models.ManyToManyField(HagiographyCitationModel, blank=True, related_name="legends")
 
 
@@ -258,16 +258,16 @@ class BulletPoint(models.Model):
 class TraditionModel(models.Model):
     biography = models.ForeignKey(Biography, on_delete=models.CASCADE, related_name="traditions")
     tradition = models.TextField()
-    country_of_origin = models.CharField(max_length=128, null=True, blank=True)
+    country_of_origin = models.CharField(max_length=2500, null=True, blank=True)
     reason_associated_with_saint = models.TextField(null=True, blank=True)
     order = models.PositiveIntegerField(default=0)
 
 
 class FoodModel(models.Model):
     biography = models.ForeignKey(Biography, on_delete=models.CASCADE, related_name="foods")
-    food_name = models.CharField(max_length=128)
+    food_name = models.CharField(max_length=2500)
     description = models.TextField()
-    country_of_origin = models.CharField(max_length=128, null=True, blank=True)
+    country_of_origin = models.CharField(max_length=2500, null=True, blank=True)
     reason_associated_with_saint = models.TextField(null=True, blank=True)
     order = models.PositiveIntegerField(default=0)
 
@@ -275,20 +275,20 @@ class FoodModel(models.Model):
 class WritingModel(models.Model):
     biography = models.ForeignKey(Biography, on_delete=models.CASCADE, related_name="writings")
     writing = models.TextField()
-    date = models.CharField(max_length=128)
-    title = models.CharField(max_length=256)
-    url = models.URLField(null=True, blank=True)
-    author = models.CharField(max_length=256, null=True, blank=True)
+    date = models.CharField(max_length=2500)
+    title = models.CharField(max_length=2500)
+    url = models.URLField(max_length=2500, null=True, blank=True)
+    author = models.CharField(max_length=2500, null=True, blank=True)
     type = models.CharField(max_length=32, choices=[("by", "By Saint"), ("about", "About Saint")])
     order = models.PositiveIntegerField(default=0)
 
 
 class ImageModel(models.Model):
     biography = models.ForeignKey(Biography, on_delete=models.CASCADE, related_name="images")
-    url = models.URLField()
-    title = models.CharField(max_length=256)
-    author = models.CharField(max_length=256, null=True, blank=True)
-    date = models.CharField(max_length=128, null=True, blank=True)
+    url = models.URLField(max_length=2500, )
+    title = models.CharField(max_length=2500)
+    author = models.CharField(max_length=2500, null=True, blank=True)
+    date = models.CharField(max_length=2500, null=True, blank=True)
     order = models.PositiveIntegerField(default=0)
 
 
@@ -301,10 +301,10 @@ class FeastDescriptionModel(models.Model):
 class Podcast(BaseModel):
     slug = models.SlugField(unique=True)
     religion = models.CharField(max_length=64)
-    title = models.CharField(max_length=256)
+    title = models.CharField(max_length=2500)
     image = models.ImageField(upload_to="podcast_images/", null=True, blank=True)
     description = models.TextField(null=True, blank=True)
-    link = models.URLField(default="https://saints.benlocher.com")
+    link = models.URLField(max_length=2500, default="https://saints.benlocher.com")
 
     def __str__(self):
         return self.title
@@ -315,9 +315,9 @@ class PodcastEpisode(BaseModel):
     date = models.DateField(help_text="Date this episode is for")
     published_date = models.DateTimeField(null=True, blank=True)
     podcast = models.ForeignKey(Podcast, on_delete=models.CASCADE, related_name="episodes")
-    file_name = models.CharField(max_length=256)
-    episode_title = models.CharField(max_length=512)
-    episode_subtitle = models.CharField(max_length=512)
+    file_name = models.CharField(max_length=2500)
+    episode_title = models.CharField(max_length=2500)
+    episode_subtitle = models.CharField(max_length=2500)
     episode_short_description = models.TextField()
     episode_long_description = models.TextField()
     episode_full_text = models.TextField()
