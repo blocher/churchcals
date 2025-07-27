@@ -3,6 +3,7 @@ import datetime
 from collections import defaultdict
 from datetime import date, timedelta
 
+from django.conf import settings
 from django.http import Http404, HttpResponse, HttpResponseRedirect
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -349,7 +350,7 @@ def calendar_view(request, year=None, month=None):
 
 
 def podcast_feed(request, slug):
-    """Return RSS feed for the given podcast."""
+    """Return RSS feed for the given podcast (Apple Podcasts compatible)."""
     podcast = get_object_or_404(Podcast, slug=slug)
 
     fg = FeedGenerator()
@@ -359,8 +360,14 @@ def podcast_feed(request, slug):
     fg.language("en-us")
     fg.description(podcast.description or podcast.title)
 
+    # Apple Podcasts/iTunes fields
+    fg.podcast.itunes_author(getattr(settings, "PODCAST_AUTHOR", "Saints and Seasons"))
+    fg.podcast.itunes_summary(podcast.description or podcast.title)
+    fg.podcast.itunes_owner(getattr(settings, "PODCAST_OWNER_NAME", "Saints and Seasons"), getattr(settings, "PODCAST_OWNER_EMAIL", "ben@benlocher.com"))
+    fg.podcast.itunes_category("Religion & Spirituality", "Christianity")
     if podcast.image:
-        fg.image(request.build_absolute_uri(podcast.image.url))
+        fg.podcast.itunes_image(request.build_absolute_uri(podcast.image.url))
+    fg.podcast.itunes_explicit("no")
 
     for episode in podcast.episodes.order_by("-date"):
         fe = fg.add_entry()
@@ -368,7 +375,20 @@ def podcast_feed(request, slug):
         fe.title(episode.episode_title)
         fe.description(episode.episode_short_description)
         fe.pubDate(episode.published_date or timezone.now())
-        fe.enclosure(request.build_absolute_uri(episode.url), 0, "audio/mpeg")
+        episode_url = request.build_absolute_uri(settings.MEDIA_URL + 'podcasts/' + episode.file_name)
+        fe.link(href=episode_url)
+        fe.guid(episode.slug, permalink=False)
+        fe.enclosure(episode_url, 0, "audio/mpeg")
+        # iTunes episode fields
+        fe.podcast.itunes_title(episode.episode_title)
+        fe.podcast.itunes_subtitle(getattr(episode, "episode_subtitle", ""))
+        fe.podcast.itunes_summary(episode.episode_short_description)
+        fe.podcast.itunes_explicit("no")
+        fe.podcast.itunes_episode(getattr(episode, "episode_number", None))
+        fe.podcast.itunes_duration(str(episode.duration) if getattr(episode, "duration", None) else "")
+        # Add <content:encoded> for long description if available
+        if getattr(episode, "episode_long_description", None):
+            fe.content(episode.episode_long_description, type="CDATA")
 
     rss = fg.rss_str(pretty=True)
     return HttpResponse(rss, content_type="application/rss+xml")

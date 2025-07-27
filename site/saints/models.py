@@ -316,12 +316,13 @@ class PodcastEpisode(BaseModel):
     published_date = models.DateTimeField(null=True, blank=True)
     podcast = models.ForeignKey(Podcast, on_delete=models.CASCADE, related_name="episodes")
     file_name = models.CharField(max_length=256)
-    url = models.URLField()
     episode_title = models.CharField(max_length=512)
     episode_subtitle = models.CharField(max_length=512)
     episode_short_description = models.TextField()
     episode_long_description = models.TextField()
     episode_full_text = models.TextField()
+    duration = models.IntegerField(null=True, blank=True, help_text="Duration of the episode in seconds")
+    episode_number = models.PositiveIntegerField(null=True, blank=True, help_text="Episode number within the podcast")
 
     class Meta:
         ordering = ["-date"]
