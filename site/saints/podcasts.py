@@ -141,6 +141,10 @@ from saints.api import BiographySerializer
 from django.utils.text import slugify
 from saints.models import Podcast, PodcastEpisode
 
+# Add Google Search API imports
+from googleapiclient.discovery import build
+from googleapiclient.errors import HttpError
+
 
 class PodcastLineModel(BaseModel):
     PodcastHostName: str
@@ -234,10 +238,188 @@ def identify_research_queries(bios: List[Dict[str, Any]]) -> List[str]:
 
 
 def supplement_with_searches(queries: List[str]) -> List[Dict[str, str]]:
+    """
+    Use Google Search API to find current, factual information about saints and feasts.
+    Combines Google Search with AI assistance to provide relevant, engaging summaries.
+    """
     print("[START] supplement_with_searches")
-    # Placeholder - replace with actual search logic
-    results = [{"query": q, "summary": f"Summary for: {q}"} for q in queries]
+    
+    # Get Google Search API credentials from environment
+    google_api_key = os.getenv('GOOGLE_SEARCH_API_KEY')
+    google_cse_id = os.getenv('GOOGLE_CUSTOM_SEARCH_ENGINE_ID')
+    
+    if not google_api_key or not google_cse_id:
+        print("Warning: Google Search API credentials not found. Using AI-only research.")
+        return _fallback_ai_research(queries)
+    
+    results = []
+    
+    for query in queries:
+        try:
+            # Perform Google Search
+            search_results = _perform_google_search(query, google_api_key, google_cse_id)
+            print("AAA")
+            print(search_results)
+            # Use AI to synthesize and summarize the search results
+            summary = _synthesize_search_results(query, search_results)
+            print("BBB")
+            print(summary)
+            print("CCC")
+            results.append({
+                "query": query,
+                "summary": summary,
+                "sources": [result.get('link', '') for result in search_results[:3]]  # Top 3 sources
+            })
+            
+        except Exception as e:
+            print(f"Error processing query '{query}': {e}")
+            # Fallback to AI-only research for this query
+            ai_summary = _fallback_ai_research([query])[0]["summary"]
+            results.append({
+                "query": query,
+                "summary": ai_summary,
+                "sources": []
+            })
+    
+    print(f"[DEBUG] Generated {len(results)} search summaries")
     print("[END] supplement_with_searches")
+    return results
+
+
+def _perform_google_search(query: str, api_key: str, cse_id: str) -> List[Dict[str, Any]]:
+    """
+    Perform a Google Custom Search for the given query.
+    Returns a list of search results with titles, snippets, and URLs.
+    """
+    try:
+        # Build the service
+        service = build("customsearch", "v1", developerKey=api_key)
+        
+        # Perform the search with Catholic/religious focus
+        search_query = f"{query} Catholic saint feast tradition"
+        
+        # Execute the search using the correct API method
+        result = service.cse().list(
+            q=search_query,
+            cx=cse_id,
+            num=5,  # Get top 5 results
+            safe="active",  # Safe search
+            lr="lang_en"  # English language
+        ).execute()
+        
+        # Extract and return the search results
+        items = result.get("items", [])
+        return [
+            {
+                "title": item.get("title", ""),
+                "snippet": item.get("snippet", ""),
+                "link": item.get("link", ""),
+                "displayLink": item.get("displayLink", "")
+            }
+            for item in items
+        ]
+        
+    except HttpError as e:
+        print(f"Google Search API error: {e}")
+        return []
+    except Exception as e:
+        print(f"Unexpected error in Google Search: {e}")
+        return []
+
+
+def _synthesize_search_results(query: str, search_results: List[Dict[str, Any]]) -> str:
+    """
+    Use AI to synthesize and summarize Google search results into a coherent summary.
+    """
+    if not search_results:
+        return _fallback_ai_research([query])[0]["summary"]
+    
+    client = get_ai_client()
+    
+    # Prepare the search results for AI processing
+    search_data = {
+        "query": query,
+        "results": search_results
+    }
+    
+    prompt = (
+        f"You are researching information for a Catholic podcast about saints and feasts. "
+        f"Based on the following Google search results for the query '{query}', "
+        f"create a concise, factual, and engaging summary that would be useful for podcast hosts. "
+        f"Focus on:\n"
+        f"- Historical facts and context\n"
+        f"- Interesting traditions or customs\n"
+        f"- Spiritual significance\n"
+        f"- Any dramatic or inspiring stories\n"
+        f"- Cultural or liturgical connections\n\n"
+        f"Write in a warm, accessible tone suitable for family listening. "
+        f"Keep it under 200 words and make it engaging for podcast content.\n\n"
+        f"Search results:\n{json.dumps(search_data, indent=2)}"
+    )
+    
+    try:
+        response = client.chat.completions.create(
+            model=get_model_name(),
+            messages=[
+                {"role": "system", "content": "You are a knowledgeable Catholic researcher and podcast content creator."},
+                {"role": "user", "content": prompt}
+            ],
+            max_tokens=400,
+            temperature=0.7
+        )
+        
+        return response.choices[0].message.content.strip()
+        
+    except Exception as e:
+        print(f"Error synthesizing search results: {e}")
+        # Fallback: combine snippets manually
+        snippets = [result.get("snippet", "") for result in search_results[:3]]
+        return f"Research on {query}: {' '.join(snippets)}"
+
+
+def _fallback_ai_research(queries: List[str]) -> List[Dict[str, str]]:
+    """
+    Fallback method using AI-only research when Google Search is unavailable.
+    """
+    client = get_ai_client()
+    results = []
+    
+    for query in queries:
+        try:
+            prompt = (
+                f"Research the following topic for a Catholic podcast about saints and feasts: {query}\n\n"
+                f"Provide a concise, factual, and engaging summary (under 200 words) that includes:\n"
+                f"- Historical context and facts\n"
+                f"- Spiritual significance\n"
+                f"- Interesting traditions or customs\n"
+                f"- Any inspiring stories or legends\n"
+                f"Write in a warm, accessible tone suitable for family listening."
+            )
+            
+            response = client.chat.completions.create(
+                model=get_model_name(),
+                messages=[
+                    {"role": "system", "content": "You are a knowledgeable Catholic researcher and podcast content creator."},
+                    {"role": "user", "content": prompt}
+                ],
+                max_tokens=400,
+                temperature=0.7
+            )
+            
+            results.append({
+                "query": query,
+                "summary": response.choices[0].message.content.strip(),
+                "sources": []
+            })
+            
+        except Exception as e:
+            print(f"Error in AI fallback research for '{query}': {e}")
+            results.append({
+                "query": query,
+                "summary": f"Research summary for: {query}",
+                "sources": []
+            })
+    
     return results
 
 
@@ -291,8 +473,13 @@ def generate_podcast_script(structured_bios: List[StructuredBioModel], target_da
         "- Use language that conveys inspiration and warmth\n"
         "\n"
         "DATA SOURCES:\n"
-        "You have TWO sources of information:\n"
-        "1. STRUCTURED SUMMARIES (PRIMARY): Use these as your main guide for the overall narrative, themes, and discussion flow.\n"
+        "You have THREE sources of information:\n"
+        "1. STRUCTURED SUMMARIES (PRIMARY): Use these as your main guide for the overall narrative, themes, and discussion flow. These summaries have been enhanced with current research from Google Search and AI analysis, providing:\n"
+        "   - Historical facts and context from current sources\n"
+        "   - Interesting traditions and customs\n"
+        "   - Spiritual significance and cultural connections\n"
+        "   - Dramatic or inspiring stories and legends\n"
+        "   - Contemporary relevance and connections\n"
         "2. ORIGINAL BIOGRAPHY DATA (SUPPLEMENTAL): Use this rich additional detail ONLY when it enhances the story:\n"
         "   - Include specific quotes if they're particularly profound or illustrative\n"
         "   - Use detailed stories from legends or hagiographies when they add drama or spiritual insight\n"
@@ -300,10 +487,17 @@ def generate_podcast_script(structured_bios: List[StructuredBioModel], target_da
         "   - Reference writings when they illuminate the saint's character or teachings\n"
         "   - DO NOT feel compelled to use everything - be selective and purposeful\n"
         "   - The original data is there to enrich, not overwhelm the conversation\n"
+        "3. ENHANCED RESEARCH DATA (INTEGRATED): The structured summaries now include current research findings that provide:\n"
+        "   - Up-to-date historical information and context\n"
+        "   - Contemporary interpretations and relevance\n"
+        "   - Additional traditions and cultural connections\n"
+        "   - Recent discoveries or insights about the saints/feasts\n"
+        "   - Cross-cultural and interfaith perspectives where relevant\n"
         "\n"
         "Include quotes only if they naturally elevate the conversation.\n"
         "Family life, prayer, witness, and faith should be woven into the reflections with warmth and sincerity.\n"
         "Mention any traditions associated with the feast or saint with genuine interest.\n"
+        "Leverage the enhanced research data to add contemporary relevance, interesting historical context, and engaging details that make the saints' stories more accessible and inspiring to modern listeners.\n"
         "\n"
         "Each episode should:\n"
         "- Begin with the date and the names of all commemorated saints and feasts\n"
