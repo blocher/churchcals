@@ -26,6 +26,9 @@ ENV/
 local_settings.py
 *.swp
 
+# Media files (generated content)
+site/mediafiles/podcasts/
+
 # Django migrations
 **/migrations/
 !*/migrations/__init__.py
