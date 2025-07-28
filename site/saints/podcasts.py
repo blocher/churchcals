@@ -26,6 +26,10 @@ For best results with Turbo v2.5:
 - Voices are balanced for clear, natural delivery without distortion
 """
 
+
+from django_cron import CronJobBase, Schedule
+
+
 # Configuration: AI Model Selection
 # Set to 'openai' for GPT-4.1 or 'grok' for Grok 4
 AI_MODEL_PROVIDER = 'openai'  # Options: 'openai', 'grok'
@@ -1068,3 +1072,69 @@ def create_full_podcast(target_date: date, publish_date: datetime.datetime = Non
 
     print("[END] create_full_podcast")
     return result
+
+
+def generate_next_day_podcast() -> str:
+    """
+    Generate a podcast for tomorrow and set it to publish today at 5 PM.
+    Returns the audio file path of the generated podcast.
+    """
+    print("[START] generate_next_day_podcast")
+    
+    # Get tomorrow's date
+    tomorrow = date.today() + datetime.timedelta(days=1)
+    
+    # Set publish date to today at 5 PM (by passing None, create_publish_date will use current time)
+    today_5pm = create_publish_date(None)
+    
+    print(f"Generating podcast for {tomorrow} to publish at {today_5pm}")
+    
+    try:
+        result = create_full_podcast(tomorrow, today_5pm)
+        print(f"[SUCCESS] Generated podcast for {tomorrow}: {result}")
+        return result
+    except Exception as e:
+        print(f"[ERROR] Failed to generate podcast for {tomorrow}: {e}")
+        raise
+    
+    print("[END] generate_next_day_podcast")
+
+class PodcastGenCron(CronJobBase):
+    # Run every day at 5 PM Eastern time
+    # We'll override the schedule to be timezone-aware
+    schedule = Schedule(run_every_mins=1440)  # Run daily, but we'll control the exact time
+    code = 'saints.generate_next_day_podcast'
+
+    def should_run_now(self, last_run):
+        """
+        Override to check if we should run at exactly 5 PM Eastern time.
+        This handles DST changes automatically.
+        """
+        from zoneinfo import ZoneInfo
+        from django.utils import timezone
+        
+        # Get current time in Eastern timezone
+        eastern_tz = ZoneInfo('America/New_York')
+        now_eastern = timezone.now().astimezone(eastern_tz)
+        
+        # Check if it's 5 PM Eastern time
+        target_hour = 17  # 5 PM
+        target_minute = 0
+        
+        # Allow a 5-minute window to ensure it runs
+        if (now_eastern.hour == target_hour and 
+            target_minute <= now_eastern.minute < target_minute + 5):
+            
+            # Only run if we haven't already run today
+            if last_run:
+                last_run_eastern = last_run.astimezone(eastern_tz)
+                if (last_run_eastern.date() == now_eastern.date()):
+                    return False
+            
+            return True
+        
+        return False
+
+    def do(self):
+        generate_next_day_podcast()
+
