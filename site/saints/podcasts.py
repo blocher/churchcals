@@ -1101,52 +1101,9 @@ def generate_next_day_podcast() -> str:
     print("[END] generate_next_day_podcast")
 
 class CreatePodcastCronJob(CronJobBase):
-    # Run every day at 5 PM Eastern time
-    # We'll override the schedule to be timezone-aware
-    schedule = Schedule(run_every_mins=1440)  # Run daily, but we'll control the exact time
+    # Run every day at 5 PM Eastern time (22:00 UTC = 5 PM ET during standard time, 6 PM ET during DST)
+    schedule = Schedule(run_at_times=["21:40"])
     code = 'saints.generate_next_day_podcast'
-
-    def should_run_now(self, last_run):
-        """
-        Override to check if we should run at 5 PM Eastern time or later if not run today.
-        This handles DST changes automatically.
-        """
-        from zoneinfo import ZoneInfo
-        from django.utils import timezone
-        
-        # Get current time in Eastern timezone
-        eastern_tz = ZoneInfo('America/New_York')
-        now_eastern = timezone.now().astimezone(eastern_tz)
-        
-        # Check if it's 5 PM or later Eastern time
-        target_hour = 17  # 5 PM
-        
-        # Debug logging
-        print(f"[CRON DEBUG] Current time (UTC): {timezone.now()}")
-        print(f"[CRON DEBUG] Current time (Eastern): {now_eastern}")
-        print(f"[CRON DEBUG] Current hour (Eastern): {now_eastern.hour}")
-        print(f"[CRON DEBUG] Target hour: {target_hour}")
-        print(f"[CRON DEBUG] Is it 5 PM or later? {now_eastern.hour >= target_hour}")
-        print(f"[CRON DEBUG] Last run: {last_run}")
-        
-        # Only run if it's 5 PM or later
-        if now_eastern.hour < target_hour:
-            print(f"[CRON DEBUG] Returning False - too early (hour {now_eastern.hour} < {target_hour})")
-            return False
-        
-        # Only run if we haven't already run today
-        if last_run:
-            last_run_eastern = last_run.astimezone(eastern_tz)
-            print(f"[CRON DEBUG] Last run (Eastern): {last_run_eastern}")
-            print(f"[CRON DEBUG] Last run date: {last_run_eastern.date()}")
-            print(f"[CRON DEBUG] Current date: {now_eastern.date()}")
-            print(f"[CRON DEBUG] Already ran today? {last_run_eastern.date() == now_eastern.date()}")
-            if (last_run_eastern.date() == now_eastern.date()):
-                print(f"[CRON DEBUG] Returning False - already ran today")
-                return False
-        
-        print(f"[CRON DEBUG] Returning True - should run now")
-        return True
 
     def do(self):
         generate_next_day_podcast()
