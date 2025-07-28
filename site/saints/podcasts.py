@@ -662,7 +662,7 @@ def generate_tts_and_merge(script: List[Dict[str, Any]], target_date: date) -> s
             "volume_multiplier": 1.0  # Balanced volume
         },
         "Maria": {
-            "voice_id": "H1GhCI6GEKiSXZcwmUkc",  # Vivie 2 Upbeat - clear female voice  
+            "voice_id": "zGjIP4SZlMnY9m93k97r",  # Eve - clear female voice  
             "volume_multiplier": 1.0  # Balanced volume
         }
     }

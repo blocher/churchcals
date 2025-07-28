@@ -299,7 +299,7 @@ class FeastDescriptionModel(models.Model):
 
 
 class Podcast(BaseModel):
-    slug = models.SlugField(unique=True)
+    slug = models.SlugField(unique=True, max_length=500)
     religion = models.CharField(max_length=64)
     title = models.CharField(max_length=2500)
     image = models.ImageField(upload_to="podcast_images/", null=True, blank=True)
@@ -311,7 +311,7 @@ class Podcast(BaseModel):
 
 
 class PodcastEpisode(BaseModel):
-    slug = models.SlugField(unique=True)
+    slug = models.SlugField(unique=True, max_length=500)
     date = models.DateField(help_text="Date this episode is for")
     published_date = models.DateTimeField(null=True, blank=True)
     podcast = models.ForeignKey(Podcast, on_delete=models.CASCADE, related_name="episodes")
