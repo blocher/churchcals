@@ -1099,7 +1099,7 @@ def generate_next_day_podcast() -> str:
     
     print("[END] generate_next_day_podcast")
 
-class PodcastGenCron(CronJobBase):
+class CreatePodcastCronJob(CronJobBase):
     # Run every day at 5 PM Eastern time
     # We'll override the schedule to be timezone-aware
     schedule = Schedule(run_every_mins=1440)  # Run daily, but we'll control the exact time
