@@ -1108,7 +1108,7 @@ class CreatePodcastCronJob(CronJobBase):
 
     def should_run_now(self, last_run):
         """
-        Override to check if we should run at exactly 5 PM Eastern time.
+        Override to check if we should run at 5 PM Eastern time or later if not run today.
         This handles DST changes automatically.
         """
         from zoneinfo import ZoneInfo
@@ -1118,23 +1118,20 @@ class CreatePodcastCronJob(CronJobBase):
         eastern_tz = ZoneInfo('America/New_York')
         now_eastern = timezone.now().astimezone(eastern_tz)
         
-        # Check if it's 5 PM Eastern time
+        # Check if it's 5 PM or later Eastern time
         target_hour = 17  # 5 PM
-        target_minute = 0
         
-        # Allow a 5-minute window to ensure it runs
-        if (now_eastern.hour == target_hour and 
-            target_minute <= now_eastern.minute < target_minute + 5):
-            
-            # Only run if we haven't already run today
-            if last_run:
-                last_run_eastern = last_run.astimezone(eastern_tz)
-                if (last_run_eastern.date() == now_eastern.date()):
-                    return False
-            
-            return True
+        # Only run if it's 5 PM or later
+        if now_eastern.hour < target_hour:
+            return False
         
-        return False
+        # Only run if we haven't already run today
+        if last_run:
+            last_run_eastern = last_run.astimezone(eastern_tz)
+            if (last_run_eastern.date() == now_eastern.date()):
+                return False
+        
+        return True
 
     def do(self):
         generate_next_day_podcast()
