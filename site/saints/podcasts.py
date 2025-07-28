@@ -1121,16 +1121,31 @@ class CreatePodcastCronJob(CronJobBase):
         # Check if it's 5 PM or later Eastern time
         target_hour = 17  # 5 PM
         
+        # Debug logging
+        print(f"[CRON DEBUG] Current time (UTC): {timezone.now()}")
+        print(f"[CRON DEBUG] Current time (Eastern): {now_eastern}")
+        print(f"[CRON DEBUG] Current hour (Eastern): {now_eastern.hour}")
+        print(f"[CRON DEBUG] Target hour: {target_hour}")
+        print(f"[CRON DEBUG] Is it 5 PM or later? {now_eastern.hour >= target_hour}")
+        print(f"[CRON DEBUG] Last run: {last_run}")
+        
         # Only run if it's 5 PM or later
         if now_eastern.hour < target_hour:
+            print(f"[CRON DEBUG] Returning False - too early (hour {now_eastern.hour} < {target_hour})")
             return False
         
         # Only run if we haven't already run today
         if last_run:
             last_run_eastern = last_run.astimezone(eastern_tz)
+            print(f"[CRON DEBUG] Last run (Eastern): {last_run_eastern}")
+            print(f"[CRON DEBUG] Last run date: {last_run_eastern.date()}")
+            print(f"[CRON DEBUG] Current date: {now_eastern.date()}")
+            print(f"[CRON DEBUG] Already ran today? {last_run_eastern.date() == now_eastern.date()}")
             if (last_run_eastern.date() == now_eastern.date()):
+                print(f"[CRON DEBUG] Returning False - already ran today")
                 return False
         
+        print(f"[CRON DEBUG] Returning True - should run now")
         return True
 
     def do(self):
