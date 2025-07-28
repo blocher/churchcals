@@ -532,6 +532,7 @@ def generate_podcast_script(structured_bios: List[StructuredBioModel], target_da
         "\n"
         "IMPORTANT: While the script should be natural and conversational, limit filler words and fluff. Keep it concise and to the point."
         "\n"
+        "IMPORTANT: The podcast should never be more than 15 minutes long (but can be shorter)."
         "Return only a JSON object with a 'lines' key, whose value is a list of objects with PodcastHostName, Content, and SystemInstructions."
     )
 
