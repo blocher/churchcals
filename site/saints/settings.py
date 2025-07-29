@@ -168,5 +168,4 @@ if DEBUG:
 
 # django-cron settings
 CRON_CLASSES = [
-    "saints.podcasts.CreatePodcastCronJob",
 ]

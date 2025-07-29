@@ -183,6 +183,31 @@ class PodcastScriptModel(BaseModel):
 
 # Helper Functions
 
+def generate_podcast_filename(target_date: date) -> str:
+    """
+    Generate a unique filename for a podcast episode based on the target date.
+    Ensures the filename is unique in the media storage by adding suffixes if needed.
+    
+    Args:
+        target_date: The date for which to generate the filename
+        
+    Returns:
+        A unique filename string for the podcast episode
+    """
+    date_str = target_date.strftime("%Y_%m_%d")
+    base_filename = f"saints_and_seasons_{date_str}.mp3"
+    filename = base_filename
+    suffix_iter = iter(string.ascii_lowercase)
+    podcasts_dir = "podcasts/"
+    
+    # Ensure unique filename in the media storage
+    while default_storage.exists(os.path.join(podcasts_dir, filename)):
+        suffix = next(suffix_iter)
+        filename = f"saints_and_seasons_{date_str}_{suffix}.mp3"
+    
+    return filename
+
+
 def get_biographies_for_day(target_date: date) -> List[Dict[str, Any]]:
     print("[START] get_biographies_for_day")
     # Calendar priority order (most important first)
@@ -717,15 +742,8 @@ def generate_tts_and_merge(script: List[Dict[str, Any]], target_date: date) -> s
         raise RuntimeError("No audio files were generated successfully")
 
     # Generate output filename
-    date_str = target_date.strftime("%Y_%m_%d")
-    base_filename = f"saints_and_seasons_{date_str}.mp3"
-    filename = base_filename
-    suffix_iter = iter(string.ascii_lowercase)
+    filename = generate_podcast_filename(target_date)
     podcasts_dir = "podcasts/"
-    # Ensure unique filename in the media storage
-    while default_storage.exists(os.path.join(podcasts_dir, filename)):
-        suffix = next(suffix_iter)
-        filename = f"saints_and_seasons_{date_str}_{suffix}.mp3"
 
     merged_path = os.path.join(temp_dir, filename)
     
@@ -1085,6 +1103,10 @@ def generate_next_day_podcast() -> str:
     # Get tomorrow's date
     tomorrow = date.today() + datetime.timedelta(days=1)
     
+    if PodcastEpisode.objects.filter(date=tomorrow).exists():
+        print(f"[INFO] Podcast for {tomorrow} already exists, skipping generation")
+        return None
+    
     # Set publish date to today at 5 PM (by passing None, create_publish_date will use current time)
     today_5pm = create_publish_date(None)
     
@@ -1099,12 +1121,4 @@ def generate_next_day_podcast() -> str:
         raise
     
     print("[END] generate_next_day_podcast")
-
-class CreatePodcastCronJob(CronJobBase):
-    # Run every day at 5 PM Eastern time (22:00 UTC = 5 PM ET during standard time, 6 PM ET during DST)
-    schedule = Schedule(run_at_times=["21:40"])
-    code = 'saints.generate_next_day_podcast'
-
-    def do(self):
-        generate_next_day_podcast()
 
