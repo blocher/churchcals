@@ -1100,8 +1100,11 @@ def generate_next_day_podcast() -> str:
     """
     print("[START] generate_next_day_podcast")
     
-    # Get tomorrow's date
-    tomorrow = date.today() + datetime.timedelta(days=1)
+    # Get tomorrow's date in Eastern time
+    from zoneinfo import ZoneInfo
+    eastern_tz = ZoneInfo('America/New_York')
+    eastern_now = timezone.now().astimezone(eastern_tz)
+    tomorrow = eastern_now.date() + datetime.timedelta(days=1)
     
     if PodcastEpisode.objects.filter(date=tomorrow).exists():
         print(f"[INFO] Podcast for {tomorrow} already exists, skipping generation")
