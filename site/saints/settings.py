@@ -34,7 +34,17 @@ SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "django-insecure-2^@xd@@2sm!e9qk4t$k
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv("DEBUG", "False").lower() in ("true", "1", "yes")
 
-ALLOWED_HOSTS = ["127.0.0.1", "localhost", "saints.benlocher.com"]
+# settings.py
+ALLOWED_HOSTS = [".benlocher.com", "localhost", "127.0.0.1"]
+
+# Django 4+ requires scheme in CSRF_TRUSTED_ORIGINS
+CSRF_TRUSTED_ORIGINS = ["https://saints.benlocher.com"]
+
+# Behind Nginx TLS termination—let Django know it’s HTTPS
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+
+# Optional but helpful behind proxies
+USE_X_FORWARDED_HOST = True
 
 
 # Application definition
