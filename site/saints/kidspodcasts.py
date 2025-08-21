@@ -27,17 +27,18 @@ For best results with Turbo v2.5:
 """
 
 
+from pprint import pprint
 from django_cron import CronJobBase, Schedule
 
 
 # Configuration: AI Model Selection
-# Set to 'openai' for GPT-4.1, 'grok' for Grok 4, or 'anthropic' for Claude
+# Set to 'openai' for GPT-5, 'grok' for Grok 2, or 'anthropic' for Claude
 AI_MODEL_PROVIDER = 'openai'  # Options: 'openai', 'grok', 'anthropic'
 
 # Model configurations
 MODEL_CONFIG = {
     'openai': {
-        'model': 'gpt-4.1',
+        'model': 'gpt-5',
         'client_module': 'openai',
         'client_class': 'OpenAI'
     },
@@ -49,7 +50,7 @@ MODEL_CONFIG = {
         'api_key_env': 'XAI_API_KEY'
     },
     'anthropic': {
-        'model': 'claude-3-5-sonnet-20241022',
+        'model': 'claude-opus-4-1-20250805',
         'client_module': 'anthropic',
         'client_class': 'Anthropic',
         'api_key_env': 'ANTHROPIC_API_KEY'
@@ -103,16 +104,24 @@ def create_structured_completion(client, model, messages, response_format_model)
         response = client.beta.chat.completions.parse(
             model=model,
             messages=messages,
-            response_format=response_format_model
+            response_format=response_format_model,
         )
         return response.choices[0].message.parsed
     elif AI_MODEL_PROVIDER == 'anthropic':
         # Use Anthropic's API with JSON mode
         enhanced_messages = messages.copy()
+        system_message = None
+        
+        # Extract system message if present
         if enhanced_messages and enhanced_messages[0]["role"] == "system":
+            system_message = enhanced_messages[0]["content"]
+            enhanced_messages = enhanced_messages[1:]  # Remove system message from messages array
+            
             # Create a simplified schema description for Anthropic
-            if hasattr(response_format_model, '__name__') and response_format_model.__name__ == 'PodcastScriptModel':
-                schema_description = '{"lines": [{"PodcastHostName": "string", "Content": "string", "SystemInstructions": "string"}, ...]}'
+            if hasattr(response_format_model, '__name__') and response_format_model.__name__ == 'KidsPodcastScriptModel':
+                schema_description = '{"title": "string", "saint_name": "string", "characters": ["string"], "script_lines": [{"character": "string", "text": "string"}], "voices": [{"character": "string", "voice_id": "string"}]}'
+            elif hasattr(response_format_model, '__name__') and response_format_model.__name__ == 'PodcastScriptModel':
+                schema_description = '{"lines": [{"character": "string", "text": "string"}]}'
             elif hasattr(response_format_model, '__name__') and response_format_model.__name__ == 'StructuredResponse':
                 schema_description = '{"feasts": [{"Title": "string", "Calendars": ["string"], "Summary": "string", "Themes": ["string"], "CommemorationIdeas": ["string"], "DiscussionQuestion": "string", "Traditions": ["string"]}, ...]}'
             elif hasattr(response_format_model, '__name__') and response_format_model.__name__ == 'ResearchQueryModel':
@@ -120,19 +129,43 @@ def create_structured_completion(client, model, messages, response_format_model)
             else:
                 # Fallback to a generic structure
                 schema_description = str(response_format_model.model_json_schema())
-            enhanced_messages[0]["content"] += f"\n\nIMPORTANT: Return your response as valid JSON that matches this exact structure: {schema_description}"
+            system_message += f"\n\nIMPORTANT: Return your response as valid JSON that matches this exact structure: {schema_description}"
         
-        response = client.messages.create(
-            model=model,
-            max_tokens=4000,
-            messages=enhanced_messages
-        )
+        # Create the API call with or without system message
+        print(f"[DEBUG] Anthropic API call - Model: {model}, System message length: {len(system_message) if system_message else 0}, Messages: {len(enhanced_messages)}")
+        
+        if system_message:
+            response = client.messages.create(
+                model=model,
+                max_tokens=8000,  # Increased token limit for complex responses
+                system=system_message,
+                messages=enhanced_messages
+            )
+        else:
+            response = client.messages.create(
+                model=model,
+                max_tokens=8000,  # Increased token limit for complex responses
+                messages=enhanced_messages
+            )
+        
+        print(f"[DEBUG] Anthropic response received - Usage: {getattr(response, 'usage', 'N/A')}")
         content = response.content[0].text
         if isinstance(content, str):
             import json
-            parsed_json = json.loads(content)
-            # Create instance of the response format model from the JSON
-            return response_format_model.model_validate(parsed_json)
+            print(f"[DEBUG] Anthropic response content: {content[:500]}...")  # Show first 500 chars
+            
+            # Check if content is empty or whitespace
+            if not content.strip():
+                raise ValueError("Anthropic returned empty response")
+            
+            try:
+                parsed_json = json.loads(content)
+                # Create instance of the response format model from the JSON
+                return response_format_model.model_validate(parsed_json)
+            except json.JSONDecodeError as e:
+                print(f"[ERROR] Failed to parse JSON from Anthropic response: {e}")
+                print(f"[ERROR] Raw content: {repr(content)}")
+                raise ValueError(f"Anthropic returned invalid JSON: {e}") from e
         return content
     else:
         # Use JSON mode for Grok and manually parse
@@ -140,8 +173,10 @@ def create_structured_completion(client, model, messages, response_format_model)
         enhanced_messages = messages.copy()
         if enhanced_messages and enhanced_messages[0]["role"] == "system":
             # Create a simplified schema description instead of the full JSON schema
-            if hasattr(response_format_model, '__name__') and response_format_model.__name__ == 'PodcastScriptModel':
-                schema_description = '{"lines": [{"PodcastHostName": "string", "Content": "string", "SystemInstructions": "string"}, ...]}'
+            if hasattr(response_format_model, '__name__') and response_format_model.__name__ == 'KidsPodcastScriptModel':
+                schema_description = '{"title": "string", "saint_name": "string", "characters": ["string"], "script_lines": [{"character": "string", "text": "string"}], "voices": [{"character": "string", "voice_id": "string"}]}'
+            elif hasattr(response_format_model, '__name__') and response_format_model.__name__ == 'PodcastScriptModel':
+                schema_description = '{"lines": [{"character": "string", "text": "string"}]}'
             elif hasattr(response_format_model, '__name__') and response_format_model.__name__ == 'StructuredResponse':
                 schema_description = '{"feasts": [{"Title": "string", "Calendars": ["string"], "Summary": "string", "Themes": ["string"], "CommemorationIdeas": ["string"], "DiscussionQuestion": "string", "Traditions": ["string"]}, ...]}'
             elif hasattr(response_format_model, '__name__') and response_format_model.__name__ == 'ResearchQueryModel':
@@ -175,7 +210,7 @@ import string
 import requests
 from datetime import date
 from typing import List, Dict, Any
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator, model_validator
 import openai
 from elevenlabs.client import ElevenLabs
 from django.core.files.base import ContentFile
@@ -193,10 +228,74 @@ from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 
 
-class PodcastLineModel(BaseModel):
-    PodcastHostName: str
-    Content: str
-    SystemInstructions: str
+# Valid ElevenLabs voice IDs that the AI must choose from (kept in sync with the system prompt)
+ALLOWED_ELEVENLABS_VOICE_IDS = {
+    "7tRwuZTD1EWi6nydVerp",  # Main Blurb Narrator (male)
+    "cfc7wVYq4gw4OpcEEAom",  # Main Story Narrator (female)
+    "vfaqCOvlrKi4Zp7C2IAm",  # Evil, Demonic, Creepy (male)
+    # "piI8Kku0DcvcL6TTSeQt",  # Fairy-like, Chipper, Squeaky, High-pitched, Childlike (female)
+    "yjJ45q8TVCrtMhEKurxY",  # Mad Scientist, Quirky (male)
+    "oR4uRy4fHDUGGISL0Rev",  # Wise, Wizard, Merlin, Magic, Use Sparingly (male)
+    "PPzYpIqttlTYA83688JI",  # Pirate, Adventerous (male)
+    # "pPdl9cQBQq4p6mRkZy2Z",  # Girly, Giggly, Young (female)
+    "ZF6FPAbjXT4488VcRRnw",  # Young, British, Bookworm (female)
+    # "FF7KdobWPaiR0vkcALHF",  # Epic, Voice of God, Movie narrator (male)
+    # "dHd5gvgSOzSfduK4CvEg",  # Comedy announcer, Jimmy Fallon (male)
+    "y2Y5MeVPm6ZQXK64WUui",  # Old, Storyteller, Wise (male)
+    # "H8BjWxFjrzNszTO74noq",  # Girly, Young, Storyteller (female)
+    "Wu86LpENEn32PwtU2hv1",  # Deeper, Cheery (female)
+    "FUfBrNit0NNZAwb58KWH",  # Generic, Main Character (female)
+    "EkK5I93UQWFDigLMpZcX",  # Deep, Main Character, Narrator (male)
+    "qBDvhofpxp92JgXJxDjB",  # Female, calmoing, youthful (female)
+    "c7XGL37TTXR5zdorzHX9",  # Gossipy, Sassy, Teenager (female)
+    "3vk47KpWZzIrWkdEhumS",  # Chatty, Laid back (male)
+    "b3tuFWghbXYRa9Cs9MJf",  # Narrator, Deep (male)
+    "0TfZ4rvne3QI7UjDxVkM",  # Childlike, High pitched (female)
+    
+    
+}
+class ScriptLineModel(BaseModel):
+    character: str
+    text: str
+
+
+class VoiceAssignment(BaseModel):
+    character: str
+    voice_id: str
+
+    @field_validator("voice_id")
+    @classmethod
+    def validate_voice_id(cls, v: str) -> str:
+        if v not in ALLOWED_ELEVENLABS_VOICE_IDS:
+            raise ValueError("voice_id must be one of the allowed ElevenLabs voice IDs")
+        return v
+
+
+class KidsPodcastScriptModel(BaseModel):
+    title: str
+    saint_name: str
+    characters: List[str]
+    script_lines: List[ScriptLineModel]
+    voices: List[VoiceAssignment]
+
+    @model_validator(mode="after")
+    def validate_voices_cover_characters(self) -> "KidsPodcastScriptModel":
+        character_set = {c.strip().lower() for c in self.characters}
+        assigned = {v.character.strip().lower() for v in self.voices}
+        missing = character_set - assigned
+        if missing:
+            # Convert back to original case for error message
+            original_missing = [c for c in self.characters if c.strip().lower() in missing]
+            raise ValueError(f"Missing voice assignments for characters: {', '.join(sorted(original_missing))}")
+        
+        # Ensure script lines only use declared characters (case-insensitive comparison)
+        line_characters = {l.character.strip().lower() for l in self.script_lines}
+        unknown = line_characters - character_set
+        if unknown:
+            # Get the original character names that are unknown
+            original_unknown = [l.character for l in self.script_lines if l.character.strip().lower() in unknown]
+            raise ValueError(f"script_lines reference undeclared characters: {', '.join(sorted(set(original_unknown)))}")
+        return self
 
 
 class StructuredBioModel(BaseModel):
@@ -218,7 +317,7 @@ class StructuredResponse(BaseModel):
 
 
 class PodcastScriptModel(BaseModel):
-    lines: List[PodcastLineModel]
+    lines: List[ScriptLineModel]
 
 
 # Helper Functions
@@ -290,7 +389,7 @@ def identify_research_queries(bios: List[Dict[str, Any]]) -> List[str]:
     print("[START] identify_research_queries")
     client = get_ai_client()
     prompt = (
-        "You are preparing a podcast about today's Catholic saints and feasts. Based on the following data, identify 1–10 factual questions a good host might research to make the show more informative, interesting, or engaging. Return only a JSON object with a 'queries' key containing a list of strings."
+        "You are preparing a podcast targeted at kids aged 4-16 about today's Catholic saints and feasts that gives a short biography followed by a dramatic audio drama of a story or legend from the life of the saint or related to the feast. Based on the following data, identify 1–4 factual questions a good host might research to make the show more informative, interesting, or engaging, focusing on colecting dramatic stories. Return only a JSON object with a 'queries' key containing a list of strings."
     )
 
     result = create_structured_completion(
@@ -304,7 +403,6 @@ def identify_research_queries(bios: List[Dict[str, Any]]) -> List[str]:
     )
 
     print("[DEBUG] AI response result:")
-    print(result)
     print("[END] identify_research_queries")
     return result.queries
 
@@ -330,7 +428,7 @@ def supplement_with_searches(queries: List[str]) -> List[Dict[str, str]]:
         try:
             # Perform Google Search
             search_results = _perform_google_search(query, google_api_key, google_cse_id)
-            print(search_results)
+            print("SEARCH RESULTS", search_results, "SEARCH_RESULTS_END")
             # Use AI to synthesize and summarize the search results
             summary = _synthesize_search_results(query, search_results)
             results.append({
@@ -350,7 +448,7 @@ def supplement_with_searches(queries: List[str]) -> List[Dict[str, str]]:
             })
     
     print(f"[DEBUG] Generated {len(results)} search summaries")
-    print("[END] supplement_with_searches")
+    # print("[END] supplement_with_searches")
     return results
 
 
@@ -429,7 +527,7 @@ def _synthesize_search_results(query: str, search_results: List[Dict[str, Any]])
         if AI_MODEL_PROVIDER == 'anthropic':
             response = client.messages.create(
                 model=get_model_name(),
-                max_tokens=400,
+                max_tokens=1000,
                 messages=[
                     {"role": "user", "content": f"You are a knowledgeable Catholic researcher and podcast content creator.\n\n{prompt}"}
                 ]
@@ -442,8 +540,6 @@ def _synthesize_search_results(query: str, search_results: List[Dict[str, Any]])
                     {"role": "system", "content": "You are a knowledgeable Catholic researcher and podcast content creator."},
                     {"role": "user", "content": prompt}
                 ],
-                max_tokens=400,
-                temperature=0.7
             )
             
             return response.choices[0].message.content.strip()
@@ -477,7 +573,7 @@ def _fallback_ai_research(queries: List[str]) -> List[Dict[str, str]]:
             if AI_MODEL_PROVIDER == 'anthropic':
                 response = client.messages.create(
                     model=get_model_name(),
-                    max_tokens=400,
+                    max_tokens=1000,
                     messages=[
                         {"role": "user", "content": f"You are a knowledgeable Catholic researcher and podcast content creator.\n\n{prompt}"}
                     ]
@@ -490,8 +586,6 @@ def _fallback_ai_research(queries: List[str]) -> List[Dict[str, str]]:
                         {"role": "system", "content": "You are a knowledgeable Catholic researcher and podcast content creator."},
                         {"role": "user", "content": prompt}
                     ],
-                    max_tokens=400,
-                    temperature=0.7
                 )
                 summary = response.choices[0].message.content.strip()
             
@@ -516,11 +610,17 @@ def get_structured_bio_summary(bios: List[Dict[str, Any]], search_results: List[
     print("[START] get_structured_bio_summary")
     client = get_ai_client()
     prompt = (
-        "Given the following hagiographies and supplemental search information, write structured summaries for each feast or saint.\n"
-        "Include: a summary; themes; ideas for commemoration; one thoughtful discussion question; and if appropriate, one or two dramatic or pious stories or legends that enrich the episode.\n"
-        "Only include stories if they genuinely add to the spiritual and narrative interest.\n"
-        "Also include a list of any traditions associated with the feast or saint.\n"
-        "Return only a JSON object with a 'feasts' key. Each feast must include the following keys: 'Title', 'Calendars', 'Summary', 'Themes', 'CommemorationIdeas', 'DiscussionQuestion'. Optionally include 'Traditions'. Do not rename or omit these fields. Use valid JSON only."
+        "Given the following hagiographies and supplemental search information, prepare a structured summary for each saint or feast. "
+        "Return only a JSON object with a 'feasts' key containing an array of objects. "
+        "Each feast object must include these EXACT keys (do not rename or omit them): "
+        "'Title' (string: saint/feast name), "
+        "'Calendars' (array of strings: which calendar systems this appears in), "
+        "'Summary' (string: brief biography and significance), "
+        "'Themes' (array of strings: key spiritual themes), "
+        "'CommemorationIdeas' (array of strings: ways to commemorate), "
+        "'DiscussionQuestion' (string: thought-provoking question for families), "
+        "'Traditions' (array of strings: associated traditions, can be empty). "
+        "Use valid JSON only."
     )
 
     merged_data = {"biographies": bios, "search_summaries": search_results}
@@ -535,7 +635,7 @@ def get_structured_bio_summary(bios: List[Dict[str, Any]], search_results: List[
     )
 
     print("[DEBUG] AI response result:")
-    print(result)
+    # print(result)
     print("[END] get_structured_bio_summary")
     return result.feasts
 
@@ -546,76 +646,92 @@ def generate_podcast_script(structured_bios: List[StructuredBioModel], target_da
     date_str = target_date.strftime('%B %d, %Y')
     
     prompt = (
-        f"You are generating a warm, upbeat, and engaging Catholic podcast script for the show 'Saints and Seasons' for {date_str}.\n"
-        "The podcast is modeled after NotebookLM but conversational, joyful, and well-researched.\n"
-        "For each structured bio, create a flowing, natural dialogue between hosts Maria and John that is engaging and heartfelt.\n"
-        "The tone should be REVERENT, INSPIRING, and CAPTIVATING—suitable for a family audience who loves engaging content.\n"
-        "Go through the hagiography narratively and conversationally, adding reflections and tying in spiritual themes naturally.\n"
-        "Dramatic or pious stories from the saint's life (or legends) should be told vividly and only when they add to the story.\n"
+        f"You are creating an exciting and engaging Catholic podcast script for kids called 'Saintly Adventures' for {date_str}.\n"
+        "This is a children's podcast that should be WARM, DRAMATIC, and INSPIRING - perfect for young listeners who love adventure stories!\n"
         "\n"
-        "ENGAGEMENT GUIDELINES:\n"
-        "- Create natural back-and-forth conversation between hosts\n"
-        "- Include moments of genuine wonder and appreciation\n"
-        "- Use thoughtful pauses for emphasis\n"
-        "- Express sincere appreciation for the saints' stories\n"
-        "- Build narrative momentum naturally\n"
-        "- Use language that conveys inspiration and warmth\n"
+        "PODCAST STRUCTURE:\n"
+        "1. WARM NARRATOR INTRODUCTION (about 30 seconds): A friendly narrator gives a brief, engaging biography of the saint\n"
+        "2. AUDIO DRAMA: An exciting dramatic retelling of the most interesting legend or story from the saint's life\n"
+        "3. If there are multiple feasts on this day, choose the MOST INTERESTING one, prioritizing:\n"
+        "   - Current Catholic calendar first\n"
+        "   - Anglican Ordinariate as final fallback\n"
+        "   - Traditional calendars (1954, 1960) as final fallback\n"   
         "\n"
-        "DATA SOURCES:\n"
-        "You have THREE sources of information:\n"
-        "1. STRUCTURED SUMMARIES (PRIMARY): Use these as your main guide for the overall narrative, themes, and discussion flow. These summaries have been enhanced with current research from Google Search and AI analysis, providing:\n"
-        "   - Historical facts and context from current sources\n"
-        "   - Interesting traditions and customs\n"
-        "   - Spiritual significance and cultural connections\n"
-        "   - Dramatic or inspiring stories and legends\n"
-        "   - Contemporary relevance and connections\n"
-        "2. ORIGINAL BIOGRAPHY DATA (SUPPLEMENTAL): Use this rich additional detail ONLY when it enhances the story:\n"
-        "   - Include specific quotes if they're particularly profound or illustrative\n"
-        "   - Use detailed stories from legends or hagiographies when they add drama or spiritual insight\n"
-        "   - Mention specific traditions or foods when they're interesting and relevant\n"
-        "   - Reference writings when they illuminate the saint's character or teachings\n"
-        "   - DO NOT feel compelled to use everything - be selective and purposeful\n"
-        "   - The original data is there to enrich, not overwhelm the conversation\n"
-        "3. ENHANCED RESEARCH DATA (INTEGRATED): The structured summaries now include current research findings that provide:\n"
-        "   - Up-to-date historical information and context\n"
-        "   - Contemporary interpretations and relevance\n"
-        "   - Additional traditions and cultural connections\n"
-        "   - Recent discoveries or insights about the saints/feasts\n"
-        "   - Cross-cultural and interfaith perspectives where relevant\n"
+        "Pick only one story from the list of stories provided in the search results. If there are multiple stories, pick the most interesting one."
+        "STORYTELLING STYLE:\n"
+        "- Make it DRAMATIC and EXCITING - like an adventure story!\n"
+        "- Emphasize HEROISM, VIRTUE, CHARITY, and other Christian values\n"
+        "- Use vivid descriptions that kids can picture in their minds\n"
+        "- Include moments of suspense, wonder, and triumph\n"
+        "- Make the saints feel like real heroes that kids can look up to\n"
+        "- Use age-appropriate language but don't talk down to children\n"
         "\n"
-        "Include quotes only if they naturally elevate the conversation.\n"
-        "Family life, prayer, witness, and faith should be woven into the reflections with warmth and sincerity.\n"
-        "Mention any traditions associated with the feast or saint with genuine interest.\n"
-        "Leverage the enhanced research data to add contemporary relevance, interesting historical context, and engaging details that make the saints' stories more accessible and inspiring to modern listeners.\n"
+        "CHARACTER DEVELOPMENT:\n"
+        "- Create distinct, memorable characters with clear voices\n"
+        "- The saint should be the hero of the story\n"
+        "- Include supporting characters that add to the drama\n"
+        "- Each character should have a clear purpose in the story\n"
         "\n"
-        "Each episode should:\n"
-        "- Begin with the date and the names of all commemorated saints and feasts\n"
-        "- If the feasts appears exclusively on a calendar(s) other than the current Catholic calendar, include which calendar(s) they are on: traditional (1954), traiditonal (1960), Anglican Ordinariate\n" 
-        "- Include 1–2 standout stories or traditions told with engaging detail.\n"
-        "- End with a practical idea for how listeners might commemorate the day, presented warmly.\n"
+        "DRAMATIC ELEMENTS:\n"
+        "- Build tension and excitement throughout the story\n"
+        "- Include moments of danger, challenge, or difficulty\n"
+        "- Show how the saint overcomes obstacles through faith and virtue\n"
+        "- End with a satisfying resolution that reinforces the moral lesson\n"
         "\n"
-        "Use simple, flowing dialogue with natural energy. Format clearly.\n"
-        "Include ElevenLabs-compatible voice instructions in square brackets when appropriate to enhance delivery:\n"
-        "- [warmly] for moments of connection and kindness\n"
-        "- [thoughtfully] for reflective passages\n"
-        "- [with wonder] for moments of amazement\n"
-        "- [gently] for tender or moving stories\n"
-        "- [appreciatively] for inspiring stories\n"
-        "- [softly] for intimate or sacred moments\n"
-        "- [cheerfully] for joyful moments\n"
-        "- [earnestly] for sincere or important points\n"
-        "- [admiringly] for remarkable achievements\n"
-        "- [with interest] for intriguing details\n"
-                 "Use these naturally to enhance the conversational flow without overdoing it.\n"
-         "\n"
-         "Important: Do not use cliche phrases, such as 'Picture this' or 'Imagine this'"
+        "VOICE INSTRUCTIONS:\n"
+        "Include ElevenLabs-compatible voice instructions in square brackets:\n"
+        "- [warmly] for the narrator's friendly introduction\n"
+        "- [excitedly] for dramatic moments\n"
+        "- [softly] for tender or sacred moments\n"
+        "- [dramatically] for high-stakes scenes\n"
+        "- [with wonder] for amazing miracles or discoveries\n"
+        "- [cheerfully] for happy endings\n"
+        "- [mysteriously] for suspenseful moments\n"
+        "- [heroically] for the saint's brave actions\n"
         "\n"
-        "IMPORTANT: NEVER mention show notes, episode descriptions, or any meta-references to the podcast format. Keep the conversation natural and immersive.\n"
+        "IMPORTANT GUIDELINES:\n"
+        "- Keep the total podcast AT LEAST 5 minutes but typically under 10 minutes for kids' attention spans\n"
+        "- Make every moment engaging - no boring parts!\n"
+        "- Focus on action and adventure rather than just facts\n"
+        "- Emphasize the saint's courage, kindness, and faith\n"
+        "- Use simple but vivid language that creates mental pictures\n"
+        "- Include a clear moral lesson that's easy for kids to understand\n"
+        "- Never mention podcast format or show notes - keep it immersive\n"
+        "- Do not use cliche phrases, such as 'Picture this' or 'Imagine this'\n"
+        "- You may absolutely consult the web search tool if supplmental information is need to make sure it is at least 5 minutes long\n"
         "\n"
-        "IMPORTANT: While the script should be natural and conversational, limit filler words and fluff. Keep it concise and to the point."
+        "Available ElevenLabs voices (id, descriptors, gender):\n"
+        "- 7tRwuZTD1EWi6nydVerp: ['Main Blurb Narrator'] (male) ALWAYS and only use this for the intro blurb\n"
+        "- cfc7wVYq4gw4OpcEEAom: ['Main Story Narrator'] (female) ALWAYS and only use this for the narrator in the story\n"
+        "- vfaqCOvlrKi4Zp7C2IAm: ['Evil','Demonic','Creepy'] (male)\n"
+        "- yjJ45q8TVCrtMhEKurxY: ['Mad Scientist', 'Quirky'] (male)\n"
+        "- oR4uRy4fHDUGGISL0Rev: ['Wise', 'Wizard', 'Merlin', 'Magic'] (male)\n"
+        "- PPzYpIqttlTYA83688JI: ['Pirate', 'Adventerous'] (male)\n"
+        "- ZF6FPAbjXT4488VcRRnw: ['Young', 'British', 'Bookworm'] (female)\n"
+        "- y2Y5MeVPm6ZQXK64WUui: ['Old', 'Storyteller', 'Wise'] (male)\n"
+        "- Wu86LpENEn32PwtU2hv1: ['Deeper', 'Cheery'] (female)\n"
+        "- FUfBrNit0NNZAwb58KWH: ['Generic', 'Main Character'] (female)\n"
+        "- EkK5I93UQWFDigLMpZcX: ['Deep', 'Main Character','Narrator'] (male)\n"
+        "- qBDvhofpxp92JgXJxDjB: ['Female', 'calming', 'youthful'] (female)\n"
+        "- c7XGL37TTXR5zdorzHX9: ['Gossipy', 'Sassy', 'Teenager'] (female)\n"
+        "- 3vk47KpWZzIrWkdEhumS: ['Chatty', 'Laid back'] (male)\n"
+        "- b3tuFWghbXYRa9Cs9MJf: ['Narrator', 'Deep'] (male)\n"
+        "- 0TfZ4rvne3QI7UjDxVkM: ['Childlike', 'High pitched'] (female)\n"
         "\n"
-        "IMPORTANT: The podcast should never be more than 15 minutes long (but can be shorter)."
-        "Return only a JSON object with a 'lines' key, whose value is a list of objects with PodcastHostName, Content, and SystemInstructions."
+        "Assign one voice_id from the list above to each character you create based on suitability. Include a narrator.\n"
+        "\n"
+        "Return a JSON object with:\n"
+        "- 'title': An exciting title for the episode\n"
+        "- 'saint_name': The name of the saint or feast being featured\n"
+        "- 'characters': A list of character names that will appear in the story\n"
+        "- 'script_lines': A list of objects with 'character' (who's speaking) and 'text' (what they say)\n"
+        "- 'voices': A list of { character, voice_id } objects, assigning each character an ElevenLabs 'voice_id' from the list above\n"
+        "\n"
+        "CRITICAL: Every 'character' name in 'script_lines' MUST exactly match a name from the 'characters' list. "
+        "Do not use character names like 'Everyone', 'All', 'Crowd', or 'Chorus' unless they are explicitly listed in 'characters'. "
+        "If multiple characters speak together, either list them individually or create a specific character name like 'Villagers' and include it in the characters list.\n"
+        "\n"
+        "Make this an adventure story that kids will want to listen to again and again!"
     )
 
     # Prepare the data payload
@@ -635,10 +751,10 @@ def generate_podcast_script(structured_bios: List[StructuredBioModel], target_da
             {"role": "system", "content": "You are a creative and passionate podcast scriptwriter who specializes in making Catholic content exciting and engaging."},
             {"role": "user", "content": prompt + "\n\nDATA:\n" + json.dumps(data_payload)}
         ],
-        response_format_model=PodcastScriptModel
+        response_format_model=KidsPodcastScriptModel
     )
     print("[END] generate_podcast_script")
-    return [line.model_dump() for line in result.lines]
+    return result.model_dump()
 
 
 def clean_text_for_tts(text: str) -> str:
@@ -720,14 +836,14 @@ def extract_voice_settings(text: str) -> Dict[str, Any]:
     return voice_settings
 
 
-def generate_tts_and_merge(script: List[Dict[str, Any]], target_date: date) -> str:
+def generate_tts_and_merge_with_voice_map(script: List[Dict[str, Any]], target_date: date, voice_map: Dict[str, str]) -> str:
     """
     Generate TTS audio for the script and merge into a single mp3 file for the given date.
     Includes intro music with fade-in to dialogue and outro music with fade-out from dialogue.
     Balanced audio levels for clear, natural delivery without distortion.
     target_date must be a datetime.date object.
     """
-    print("[START] generate_tts_and_merge")
+    print("[START] generate_tts_and_merge_with_voice_map")
     if not isinstance(target_date, date):
         raise TypeError(f"target_date must be a datetime.date, not {type(target_date)}")
 
@@ -739,28 +855,26 @@ def generate_tts_and_merge(script: List[Dict[str, Any]], target_date: date) -> s
     client = ElevenLabs(api_key=api_key)
     
     # Balanced voice configuration for clear audio without distortion
-    voice_config = {
-        "John": {
-            "voice_id": "gs0tAILXbY5DNrJrsM6F",  # Jeff - warm male voice
-            "volume_multiplier": 1.0  # Balanced volume
-        },
-        "Maria": {
-            "voice_id": "zGjIP4SZlMnY9m93k97r",  # Eve - clear female voice  
-            "volume_multiplier": 1.0  # Balanced volume
-        }
-    }
+    voice_config = {}
     
     temp_dir = tempfile.mkdtemp()
     audio_files = []
 
-    for idx, line in enumerate(script):
-        host_name = line["PodcastHostName"]
-        voice_config_data = voice_config.get(host_name, voice_config["Maria"])
-        voice_id = voice_config_data["voice_id"]
-        volume_multiplier = voice_config_data["volume_multiplier"]
+    # If script is in kids JSON structure, normalize to a list of lines with speaker+text
+    normalized_lines = []
+    if isinstance(script, dict) and "script_lines" in script:
+        normalized_lines = script["script_lines"]
+    else:
+        normalized_lines = script
+
+    for idx, line in enumerate(normalized_lines):
+        host_name = line.get("character") or line.get("PodcastHostName")
+        if host_name not in voice_map:
+            raise KeyError(f"No voice_id provided by AI for character: {host_name}")
+        voice_id = voice_map[host_name]
         
         # Clean the text and extract voice settings
-        original_text = line["Content"]
+        original_text = line.get("text") or line.get("Content") or ""
         cleaned_text = clean_text_for_tts(original_text)
         voice_settings = extract_voice_settings(original_text)
         
@@ -810,8 +924,8 @@ def generate_tts_and_merge(script: List[Dict[str, Any]], target_date: date) -> s
     
     for i, audio_file in enumerate(audio_files):
         # Determine speaker for this segment
-        if i < len(script):
-            speaker = script[i]["PodcastHostName"]
+        if i < len(normalized_lines):
+            speaker = normalized_lines[i].get("character") or normalized_lines[i].get("PodcastHostName")
         else:
             speaker = current_speaker
             
@@ -831,8 +945,8 @@ def generate_tts_and_merge(script: List[Dict[str, Any]], target_date: date) -> s
         current_speaker = speaker
     
     # Get intro and outro music file paths
-    intro_music_path = os.path.join(settings.MEDIA_ROOT, "podcast_assets", "intro_music.mp3")
-    outro_music_path = os.path.join(settings.MEDIA_ROOT, "podcast_assets", "outro_music.mp3")
+    intro_music_path = os.path.join(settings.MEDIA_ROOT, "podcast_assets", "saintly_adventures_theme.mp3")
+    outro_music_path = os.path.join(settings.MEDIA_ROOT, "podcast_assets", "saintly_adventures_theme.mp3")
     
     # Check if intro and outro files exist
     if not os.path.exists(intro_music_path):
@@ -949,7 +1063,7 @@ def generate_tts_and_merge(script: List[Dict[str, Any]], target_date: date) -> s
     with open(merged_path, "rb") as f:
         default_storage.save(os.path.join(podcasts_dir, filename), ContentFile(f.read()))
 
-    print("[END] generate_tts_and_merge")
+    print("[END] generate_tts_and_merge_with_voice_map")
     return os.path.join(podcasts_dir, filename)
 
 
@@ -1051,7 +1165,18 @@ def generate_episode_metadata(structured, script, target_date, audio_path):
         for s in structured:
             long_desc += f"<b>{s.Title}</b>\n{s.Summary}\n"
             long_desc += "\n\n"
-    full_text = "\n".join([line["Content"] for line in script])
+    # Build full text for metadata from script structure
+    full_text = ""
+    if isinstance(script, dict) and "script_lines" in script:
+        try:
+            full_text = "\n".join([f"{l.get('character', '')}: {l.get('text', '')}" for l in script["script_lines"]])
+        except Exception:
+            full_text = "\n".join([l.get("text", "") for l in script.get("script_lines", [])])
+    else:
+        try:
+            full_text = "\n".join([line.get("Content") or line.get("text") or "" for line in script])
+        except Exception:
+            full_text = ""
     slug_base = f"{date_str}-{episode_names[0] if episode_names else 'episode'}"
     slug = slugify(slug_base)[:50]
     orig_slug = slug
@@ -1160,7 +1285,20 @@ def create_full_podcast(target_date: date, publish_date: datetime.datetime = Non
     search_results = supplement_with_searches(research_queries)
     structured = get_structured_bio_summary(bios, search_results)
     script = generate_podcast_script(structured, target_date, bios)  # Pass original bios
-    result = generate_tts_and_merge(script, target_date)
+    print(script)
+    # Require AI-assigned voice map; no local fallback
+    voice_map = {}
+    if isinstance(script, dict) and script.get("voices"):
+        raw_voices = script.get("voices")
+        if isinstance(raw_voices, list):
+            voice_map = {item.get("character"): item.get("voice_id") for item in raw_voices if item.get("character") and item.get("voice_id")}
+        else:
+            voice_map = raw_voices
+    else:
+        raise ValueError("AI response did not include required 'voices' assignments")
+   
+    print("[INFO] Assigned voice IDs:", voice_map)
+    result = generate_tts_and_merge_with_voice_map(script, target_date, voice_map)
 
     # Generate metadata and create PodcastEpisode
     metadata = generate_episode_metadata(structured, script, target_date, result)
