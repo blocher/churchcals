@@ -15,7 +15,7 @@ from django.utils import timezone
 from django.utils.timezone import make_aware
 from django.utils.text import slugify
 
-from elevenlabs.client import ElevenLabs
+from elevenlabs import DialogueInput, ElevenLabs
 from pydantic import BaseModel, Field, model_validator
 
 from saints.models import CalendarEvent, Podcast, PodcastEpisode
@@ -39,6 +39,7 @@ class StructuredBioModel(BaseModel):
     CommemorationIdeas: List[str]
     DiscussionQuestion: str
     Traditions: List[str] = []
+    Legends: List[str] = []
 
 
 class ResearchQueryModel(BaseModel):
@@ -529,51 +530,7 @@ class PodcastGenerator:
         cleaned_text = re.sub(r"\s+", " ", cleaned_text)
         return cleaned_text.strip()
 
-    @staticmethod
-    def _extract_voice_settings(text: str) -> Dict[str, Any]:
-        import re
-        instructions = re.findall(r"\[(.*?)\]", text.lower())
-        voice_settings: Dict[str, Any] = {
-            "stability": 0.75,
-            "similarity_boost": 0.85,
-            "style": 0.15,
-            "use_speaker_boost": True,
-            "speed": 1.0,
-        }
-        for instruction in instructions:
-            if "softly" in instruction or "gently" in instruction:
-                voice_settings["stability"] = 0.85
-                voice_settings["style"] = 0.1
-                voice_settings["speed"] = 0.95
-            elif "dramatically" in instruction or "passionately" in instruction:
-                voice_settings["stability"] = 0.65
-                voice_settings["style"] = 0.25
-                voice_settings["speed"] = 1.05
-            elif "excitedly" in instruction or "enthusiastically" in instruction:
-                voice_settings["stability"] = 0.7
-                voice_settings["style"] = 0.2
-                voice_settings["speed"] = 1.05
-            elif "building excitement" in instruction or "with growing excitement" in instruction:
-                voice_settings["stability"] = 0.65
-                voice_settings["style"] = 0.3
-                voice_settings["speed"] = 1.1
-            elif "breathlessly" in instruction or "in wonder" in instruction:
-                voice_settings["stability"] = 0.7
-                voice_settings["style"] = 0.2
-                voice_settings["speed"] = 1.0
-            elif "joyfully" in instruction or "with awe" in instruction:
-                voice_settings["stability"] = 0.75
-                voice_settings["style"] = 0.18
-                voice_settings["speed"] = 1.02
-            elif "thoughtfully" in instruction or "warmly" in instruction:
-                voice_settings["stability"] = 0.8
-                voice_settings["style"] = 0.1
-                voice_settings["speed"] = 0.98
-            elif "laughs" in instruction:
-                voice_settings["stability"] = 0.7
-                voice_settings["style"] = 0.2
-                voice_settings["speed"] = 1.05
-        return voice_settings
+    
 
     def _normalize_script_and_voice_map(
         self, script_obj: Any
@@ -610,85 +567,146 @@ class PodcastGenerator:
         client = ElevenLabs(api_key=api_key)
 
         temp_dir = tempfile.mkdtemp()
-        audio_files: List[str] = []
 
-        print(f"[GEN] Generating TTS for {len(normalized_lines)} lines")
-        for idx, line in enumerate(normalized_lines):
+        print(f"[GEN] Generating dialogue with ElevenLabs v3 for {len(normalized_lines)} lines")
+
+        # Build DialogueInput list, splitting overly long lines into smaller chunks
+        def _chunk_text(text: str, max_chunk_len: int = 900) -> List[str]:
+            """Chunk text while avoiding splits inside bracketed tags like [whispering] or [church bells]."""
+            if len(text) <= max_chunk_len:
+                return [text]
+            chunks: List[str] = []
+            start = 0
+            min_backtrack = int(max_chunk_len * 0.6)
+            while start < len(text):
+                end = min(start + max_chunk_len, len(text))
+                # Prefer to break on whitespace for better prosody
+                if end < len(text):
+                    ws = text.rfind(" ", start + min_backtrack, end)
+                    if ws != -1:
+                        end = ws
+
+                candidate = text[start:end].strip()
+                # If the candidate chunk contains an unmatched '[' (e.g., split inside a tag),
+                # backtrack to the last '[' so the entire tag moves to the next chunk.
+                if candidate.count("[") > candidate.count("]"):
+                    last_open = candidate.rfind("[")
+                    if last_open != -1:
+                        candidate = candidate[:last_open].strip()
+                        end = start + last_open
+
+                if candidate:
+                    chunks.append(candidate)
+                # Guard against infinite loop in rare cases
+                if end <= start:
+                    end = min(start + max_chunk_len, len(text))
+                start = end
+            return [c for c in chunks if c]
+
+        flat_inputs: List[DialogueInput] = []
+        for line in normalized_lines:
             speaker = line["speaker"]
             if speaker not in voice_map:
                 raise KeyError(f"No voice_id provided for speaker: {speaker}")
             voice_id = voice_map[speaker]
-            original_text = line["text"]
-            cleaned_text = self._clean_text_for_tts(original_text)
-            voice_settings = self._extract_voice_settings(original_text)
+            text_for_dialogue = line["text"]
+            for piece in _chunk_text(text_for_dialogue):
+                flat_inputs.append(DialogueInput(text=piece, voice_id=voice_id))
+
+        # Batch inputs to respect ElevenLabs v3 request limit (max 3000 chars total text)
+        MAX_REQ_CHARS = 2500
+        batches: List[List[DialogueInput]] = []
+        current_batch: List[DialogueInput] = []
+        current_len = 0
+        for di in flat_inputs:
+            piece_len = len(di.text)  # type: ignore[attr-defined]
+            if current_batch and current_len + piece_len > MAX_REQ_CHARS:
+                batches.append(current_batch)
+                current_batch = [di]
+                current_len = piece_len
+            else:
+                current_batch.append(di)
+                current_len += piece_len
+        if current_batch:
+            batches.append(current_batch)
+
+        if not batches:
+            raise RuntimeError("No dialogue inputs were prepared for TTD")
+
+        part_files: List[str] = []
+        for bidx, batch in enumerate(batches):
             try:
-                audio_response = client.text_to_speech.convert(
-                    text=cleaned_text,
-                    voice_id=voice_id,
-                    model_id="eleven_turbo_v2_5",
+                response = client.text_to_dialogue.convert(
+                    inputs=batch,
+                    model_id="eleven_v3",
                     output_format="mp3_44100_128",
-                    voice_settings=voice_settings,
                 )
-                temp_path = os.path.join(temp_dir, f"line_{idx}.mp3")
-                with open(temp_path, "wb") as f:
-                    for chunk in audio_response:
+            except Exception as e:
+                raise RuntimeError(f"Failed to generate dialogue audio for batch {bidx}: {e}")
+
+            part_path = os.path.join(temp_dir, f"dialogue_part_{bidx}.mp3")
+            with open(part_path, "wb") as f:
+                if isinstance(response, (bytes, bytearray)):
+                    f.write(response)
+                else:
+                    for chunk in response:
                         if chunk:
                             f.write(chunk)
-                balanced_path = os.path.join(temp_dir, f"balanced_{idx}.mp3")
-                subprocess.run(
-                    [
-                        "ffmpeg",
-                        "-y",
-                        "-i",
-                        temp_path,
-                        "-filter_complex",
-                        "volume=1.0,loudnorm=I=-16:LRA=11:TP=-1.5",
-                        "-c:a",
-                        "libmp3lame",
-                        balanced_path,
-                    ],
-                    capture_output=True,
-                    check=True,
-                )
-                audio_files.append(balanced_path)
-            except Exception as e:
-                print(f"Error generating TTS for line {idx}: {e}")
-                continue
+            part_files.append(part_path)
 
-        if not audio_files:
-            raise RuntimeError("No audio files were generated successfully")
+        # Concatenate all parts into a single raw dialogue file
+        raw_dialogue_path = os.path.join(temp_dir, "dialogue_raw.mp3")
+        if len(part_files) == 1:
+            raw_dialogue_path = part_files[0]
+        else:
+            print(f"[GEN] Concatenating {len(part_files)} dialogue parts")
+            subprocess.run(
+                [
+                    "ffmpeg",
+                    "-y",
+                ]
+                + sum([["-i", f] for f in part_files], [])
+                + [
+                    "-filter_complex",
+                    f"concat=n={len(part_files)}:v=0:a=1[dialogue]",
+                    "-map",
+                    "[dialogue]",
+                    "-c:a",
+                    "libmp3lame",
+                    "-b:a",
+                    "128k",
+                    raw_dialogue_path,
+                ],
+                capture_output=True,
+                check=True,
+            )
 
         filename = self._generate_podcast_filename(target_date)
         podcasts_dir = "podcasts/"
         merged_path = os.path.join(temp_dir, filename)
 
-        # Insert subtle pauses between speaker changes
-        enhanced_audio_files: List[str] = []
-        current_speaker: Optional[str] = None
-        for i, audio_file in enumerate(audio_files):
-            speaker = normalized_lines[i]["speaker"] if i < len(normalized_lines) else current_speaker
-            if i > 0 and current_speaker != speaker:
-                pause_file = os.path.join(temp_dir, f"pause_{i}.mp3")
-                subprocess.run(
-                    [
-                        "ffmpeg",
-                        "-y",
-                        "-f",
-                        "lavfi",
-                        "-i",
-                        "anoisesrc=duration=0.5:colour=white:seed=42:amplitude=0.001",
-                        "-filter_complex",
-                        "volume=0.01",
-                        "-c:a",
-                        "libmp3lame",
-                        pause_file,
-                    ],
-                    capture_output=True,
-                    check=True,
-                )
-                enhanced_audio_files.append(pause_file)
-            enhanced_audio_files.append(audio_file)
-            current_speaker = speaker
+        # Normalize dialogue audio before mixing with music
+        dialogue_path = os.path.join(temp_dir, "dialogue.mp3")
+        print("[GEN] Normalizing dialogue audio")
+        subprocess.run(
+            [
+                "ffmpeg",
+                "-y",
+                "-i",
+                raw_dialogue_path,
+                "-filter_complex",
+                "[0:a]loudnorm=I=-16:LRA=11:TP=-1.5[final]",
+                "-map",
+                "[final]",
+                "-c:a",
+                "libmp3lame",
+                "-b:a",
+                "128k",
+                dialogue_path,
+            ],
+            capture_output=True,
+            check=True,
+        )
 
         # Prepare music assets
         def _safe_path(name: Optional[str]) -> Optional[str]:
@@ -700,29 +718,7 @@ class PodcastGenerator:
         intro_music_path = _safe_path(self.config.audio.intro_filename)
         outro_music_path = _safe_path(self.config.audio.outro_filename)
 
-        # First, concat dialogue
-        dialogue_path = os.path.join(temp_dir, "dialogue.mp3")
-        print("[GEN] Concatenating dialogue audio")
-        subprocess.run(
-            [
-                "ffmpeg",
-                "-y",
-            ]
-            + sum([["-i", f] for f in enhanced_audio_files], [])
-            + [
-                "-filter_complex",
-                f"concat=n={len(enhanced_audio_files)}:v=0:a=1[dialogue]",
-                "-map",
-                "[dialogue]",
-                "-c:a",
-                "libmp3lame",
-                "-b:a",
-                "128k",
-                dialogue_path,
-            ],
-            capture_output=True,
-            check=True,
-        )
+        # We already have a single dialogue file; proceed to music merge
 
         def get_audio_duration(file_path: str) -> float:
             try:

@@ -29,103 +29,125 @@ KIDS_STRUCTURED_BIO_PROMPT = (
     "'CommemorationIdeas' (array of strings: ways to commemorate), "
     "'DiscussionQuestion' (string: thought-provoking question for families), "
     "'Traditions' (array of strings: associated traditions, can be empty). "
+    "'Legends' (array of strings: detailed legends or stories about the saint or feast, showcasing dramatic elements and their virtues)"
     "Use valid JSON only."
 )
 
-KIDS_SCRIPT_PROMPT_TEMPLATE = (
-    "You are creating an exciting and engaging Catholic podcast script for kids called 'Saintly Adventures' for {date}.\n"
-    "This is a children's podcast that should be WARM, DRAMATIC, and INSPIRING - perfect for young listeners who love adventure stories!\n"
-    "\n"
-    "PODCAST STRUCTURE:\n"
-    "1. WARM NARRATOR INTRODUCTION (about 30 seconds): A friendly narrator gives a brief, engaging biography of the saint\n"
-    "2. AUDIO DRAMA: An exciting dramatic retelling of the most interesting legend or story from the saint's life\n"
-    "3. If there are multiple feasts on this day, choose the MOST INTERESTING one, prioritizing:\n"
-    "   - Current Catholic calendar first\n"
-    "   - Anglican Ordinariate as final fallback\n"
-    "   - Traditional calendars (1954, 1960) as final fallback\n"
-    "\n"
-    "Pick only one story from the list of stories provided in the search results. If there are multiple stories, pick the most interesting one."
-    "STORYTELLING STYLE:\n"
-    "- Make it DRAMATIC and EXCITING - like an adventure story!\n"
-    "- Emphasize HEROISM, VIRTUE, CHARITY, and other Christian values\n"
-    "- Use vivid descriptions that kids can picture in their minds\n"
-    "- Include moments of suspense, wonder, and triumph\n"
-    "- Make the saints feel like real heroes that kids can look up to\n"
-    "- Use age-appropriate language but don't talk down to children\n"
-    "\n"
-    "CHARACTER DEVELOPMENT:\n"
-    "- Create distinct, memorable characters with clear voices\n"
-    "- The saint should be the hero of the story\n"
-    "- Include supporting characters that add to the drama\n"
-    "- Each character should have a clear purpose in the story\n"
-    "\n"
-    "DRAMATIC ELEMENTS:\n"
-    "- Build tension and excitement throughout the story\n"
-    "- Include moments of danger, challenge, or difficulty\n"
-    "- Show how the saint overcomes obstacles through faith and virtue\n"
-    "- End with a satisfying resolution that reinforces the moral lesson\n"
-    "\n"
-    "VOICE INSTRUCTIONS:\n"
-    "Include ElevenLabs-compatible voice instructions in square brackets:\n"
-    "- [warmly] for the narrator's friendly introduction\n"
-    "- [excitedly] for dramatic moments\n"
-    "- [softly] for tender or sacred moments\n"
-    "- [dramatically] for high-stakes scenes\n"
-    "- [with wonder] for amazing miracles or discoveries\n"
-    "- [cheerfully] for happy endings\n"
-    "- [mysteriously] for suspenseful moments\n"
-    "- [heroically] for the saint's brave actions\n"
-    "\n"
-    "IMPORTANT GUIDELINES:\n"
-    "- Keep the total podcast AT LEAST 5 minutes but typically under 10 minutes for kids' attention spans\n"
-    "- Make every moment engaging - no boring parts!\n"
-    "- Focus on action and adventure rather than just facts\n"
-    "- Emphasize the saint's courage, kindness, and faith\n"
-    "- Use simple but vivid language that creates mental pictures\n"
-    "- Include a clear moral lesson that's easy for kids to understand\n"
-    "- Never mention podcast format or show notes - keep it immersive\n"
-    "- Do not use cliche phrases, such as 'Picture this' or 'Imagine this'\n"
-    "- You may absolutely consult the web search tool if supplmental information is need to make sure it is at least 5 minutes long\n"
-    "\n"
-    "Available ElevenLabs voices (id, descriptors, gender):\n"
-    "- 7tRwuZTD1EWi6nydVerp: ['Main Blurb Narrator'] (male) ALWAYS and only use this for the intro blurb\n"
-    "- cfc7wVYq4gw4OpcEEAom: ['Main Story Narrator'] (female) ALWAYS and only use this for the narrator in the story\n"
-    "- vfaqCOvlrKi4Zp7C2IAm: ['Evil','Demonic','Creepy'] (male)\n"
-    "- yjJ45q8TVCrtMhEKurxY: ['Mad Scientist', 'Quirky'] (male)\n"
-    "- oR4uRy4fHDUGGISL0Rev: ['Wise', 'Wizard', 'Merlin', 'Magic'] (male)\n"
-    "- PPzYpIqttlTYA83688JI: ['Pirate', 'Adventerous'] (male)\n"
-    "- ZF6FPAbjXT4488VcRRnw: ['Young', 'British', 'Bookworm'] (female)\n"
-    "- y2Y5MeVPm6ZQXK64WUui: ['Old', 'Storyteller', 'Wise'] (male)\n"
-    "- Wu86LpENEn32PwtU2hv1: ['Deeper', 'Cheery'] (female)\n"
-    "- FUfBrNit0NNZAwb58KWH: ['Generic', 'Main Character'] (female)\n"
-    "- EkK5I93UQWFDigLMpZcX: ['Deep', 'Main Character','Narrator'] (male)\n"
-    "- qBDvhofpxp92JgXJxDjB: ['Female', 'calming', 'youthful'] (female)\n"
-    "- c7XGL37TTXR5zdorzHX9: ['Gossipy', 'Sassy', 'Teenager'] (female)\n"
-    "- 3vk47KpWZzIrWkdEhumS: ['Chatty', 'Laid back'] (male)\n"
-    "- b3tuFWghbXYRa9Cs9MJf: ['Narrator', 'Deep'] (male)\n"
-    "- 0TfZ4rvne3QI7UjDxVkM: ['Childlike', 'High pitched'] (female)\n"
-    "\n"
-    "Assign one voice_id from the list above to each character you create based on suitability. Include a narrator.\n"
-    "\n"
-    "Return a JSON object with:\n"
-    "- 'title': An exciting title for the episode\n"
-    "- 'saint_name': The name of the saint or feast being featured\n"
-    "- 'characters': A list of character names that will appear in the story\n"
-    "- 'script_lines': A list of objects with 'character' (who's speaking) and 'text' (what they say)\n"
-    "- 'voices': A list of { character, voice_id } objects, assigning each character an ElevenLabs 'voice_id' from the list above\n"
-    "\n"
-    "CRITICAL: Every 'character' name in 'script_lines' MUST exactly match a name from the 'characters' list. "
-    "Do not use character names like 'Everyone', 'All', 'Crowd', or 'Chorus' unless they are explicitly listed in 'characters'. "
-    "If multiple characters speak together, either list them individually or create a specific character name like 'Villagers' and include it in the characters list.\n"
-    "\n"
-    "Make this an adventure story that kids will want to listen to again and again!"
-)
+KIDS_SCRIPT_PROMPT_TEMPLATE = """
+You are creating an exciting and engaging Catholic podcast script for kids called 'Saintly Adventures' for {date}.
+This is a children's podcast that should be WARM, DRAMATIC, and INSPIRING - perfect for young listeners who love adventure stories!
+
+PODCAST STRUCTURE:
+1. WARM NARRATOR INTRODUCTION (about 30 seconds): A friendly narrator gives a brief, engaging biography of the saint
+2. AUDIO DRAMA: An exciting dramatic retelling of the most interesting legend or story from the saint's life
+3. If there are multiple feasts on this day, choose the MOST INTERESTING one, prioritizing:
+   - Current Catholic calendar first
+   - Anglican Ordinariate as final fallback
+   - Traditional calendars (1954, 1960) as final fallback
+
+Pick only one story from the list of stories provided in the search results. If there are multiple stories, pick the most interesting one.
+STORYTELLING STYLE:
+- Make it DRAMATIC and EXCITING - like an adventure story!
+- Emphasize HEROISM, VIRTUE, CHARITY, and other Christian values
+- Use vivid descriptions that kids can picture in their minds
+- Include moments of suspense, wonder, and triumph
+- Make the saints feel like real heroes that kids can look up to
+- Use age-appropriate language but don't talk down to children
+
+CHARACTER DEVELOPMENT:
+- Create distinct, memorable characters with clear voices
+- The saint should be the hero of the story
+- Include supporting characters that add to the drama
+- Each character should have a clear purpose in the story
+
+DRAMATIC ELEMENTS:
+- Build tension and excitement throughout the story
+- Include moments of danger, challenge, or difficulty
+- Show how the saint overcomes obstacles through faith and virtue
+- End with a satisfying resolution that reinforces the moral lesson
+
+VOICE INSTRUCTIONS:
+Include ElevenLabs-compatible voice instructions in square brackets:
+- [warmly] for the narrator's friendly introduction
+- [excitedly] for dramatic moments
+- [softly] for tender or sacred moments
+- [dramatically] for high-stakes scenes
+- [with wonder] for amazing miracles or discoveries
+- [cheerfully] for happy endings
+- [mysteriously] for suspenseful moments
+- [heroically] for the saint's brave actions
+- [mysteriously] for suspenseful moments
+- [heroically] for the saint's brave actions
+- [solemnly] for sacred moments
+- Others as deemed good and appropriate
+
+Also include sounds like [laugh] [giggles] [growls] [chimes] when appropriate
+
+PROMPTING (v3 model guidance):
+- The model interprets emotional context directly from the text. Descriptive cues like "she said excitedly" and punctuation (e.g., exclamation marks!) will influence delivery.
+- Use non-speech audio tags in square brackets to shape delivery and sound design. Categories include:
+  - Emotions and delivery: [sad], [laughing], [whispering]
+  - Audio events: [church bells], [soft choir humming], [gentle footsteps on stone], [pages rustling], [crowd murmurs], [wind through the cloister] NOTE: Do include at least a few audio events.
+  - Overall direction: [cathedral procession], [stormy night at sea], [busy market square], [quiet monastery], [royal court]
+- You can signal interruptions with punctuation and tags:
+  - "[cautiously] Father, may I ask a ques-"
+  - "[gently interrupting] Of course. [warmly] What troubles you?"
+- Ellipses can indicate trailing sentences or hesitations:
+  - "[in awe] I... I think that was a miracle..."
+  - "[whispering] Did you hear the [church bells]?"
+  - "[elated] Yes! [laughing] Saint Francis did it again!"
+Include such tags and punctuation naturally in character lines to enhance performance and immersion for kids.
+
+IMPORTANT GUIDELINES:
+- Keep the total podcast AT LEAST 4 minutes but typically under 10 minutes for kids' attention spans
+- Make every moment engaging - no boring parts!
+- Focus on action and adventure rather than just facts
+- Emphasize the saint's courage, kindness, and faith
+- Use simple but vivid language that creates mental pictures
+- Include a clear moral lesson that's easy for kids to understand
+- Never mention podcast format or show notes - keep it immersive
+- Do not use cliche phrases, such as 'Picture this' or 'Imagine this'
+- You may absolutely consult the web search tool if supplmental information is need to make sure it is at least 5 minutes long
+- Spell out all ambiguous words, names, and places so they can be read as audio, for example, 'Pius X' should be spelled out as 'Pius the Tenth, so that it is clear to read.'
+- This script is meant for being spoken, so write as if it were spoken umabiguosly word for word, even if it's not the way you'd write it 
+
+Available ElevenLabs voices (id, descriptors, gender):
+- 7tRwuZTD1EWi6nydVerp: ['Main Blurb Narrator'] (male) ALWAYS and only use this for the intro blurb
+- cfc7wVYq4gw4OpcEEAom: ['Main Story Narrator'] (female) ALWAYS and only use this for the narrator in the story
+- vfaqCOvlrKi4Zp7C2IAm: ['Evil','Demonic','Creepy'] (male)
+- yjJ45q8TVCrtMhEKurxY: ['Mad Scientist', 'Quirky'] (male)
+- oR4uRy4fHDUGGISL0Rev: ['Wise', 'Wizard', 'Merlin', 'Magic'] (male)
+- PPzYpIqttlTYA83688JI: ['Pirate', 'Adventerous'] (male)
+- ZF6FPAbjXT4488VcRRnw: ['Young', 'British', 'Bookworm'] (female)
+- y2Y5MeVPm6ZQXK64WUui: ['Old', 'Storyteller', 'Wise'] (male)
+- Wu86LpENEn32PwtU2hv1: ['Deeper', 'Cheery'] (female)
+- FUfBrNit0NNZAwb58KWH: ['Generic', 'Main Character'] (female)
+- EkK5I93UQWFDigLMpZcX: ['Deep', 'Main Character','Narrator'] (male)
+- qBDvhofpxp92JgXJxDjB: ['Female', 'calming', 'youthful'] (female)
+- c7XGL37TTXR5zdorzHX9: ['Gossipy', 'Sassy', 'Teenager'] (female)
+- 3vk47KpWZzIrWkdEhumS: ['Chatty', 'Laid back'] (male)
+- b3tuFWghbXYRa9Cs9MJf: ['Narrator', 'Deep'] (male)
+- 0TfZ4rvne3QI7UjDxVkM: ['Childlike', 'High pitched'] (female)
+
+Assign one voice_id from the list above to each character you create based on suitability. Include a narrator.
+
+Return a JSON object with:
+- 'title': An exciting title for the episode
+- 'saint_name': The name of the saint or feast being featured
+- 'characters': A list of character names that will appear in the story
+- 'script_lines': A list of objects with 'character' (who's speaking) and 'text' (what they say)
+- 'voices': A list of { character, voice_id } objects, assigning each character an ElevenLabs 'voice_id' from the list above
+
+CRITICAL: Every 'character' name in 'script_lines' MUST exactly match a name from the 'characters' list. Do not use character names like 'Everyone', 'All', 'Crowd', or 'Chorus' unless they are explicitly listed in 'characters'. If multiple characters speak together, either list them individually or create a specific character name like 'Villagers' and include it in the characters list.
+
+Make this an adventure story that kids will want to listen to again and again!
+"""
 
 
 def _get_generator() -> PodcastGenerator:
     return PodcastGenerator(
         GeneratorConfig(
-            ai=AIConfig(provider="openai", model="gpt-4.1"),
+            ai=AIConfig(provider="openai", model="gpt-5"),
             prompts=PromptsConfig(
                 identify_research_queries_prompt=KIDS_IDENTIFY_QUERIES_PROMPT,
                 structured_bio_prompt=KIDS_STRUCTURED_BIO_PROMPT,
