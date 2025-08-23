@@ -29,10 +29,6 @@ local_settings.py
 # Media files (generated content)
 site/mediafiles/podcasts/
 
-# Django migrations
-**/migrations/
-!*/migrations/__init__.py
-
 # VS Code / PyCharm
 .vscode/
 .idea/
