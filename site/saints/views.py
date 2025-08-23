@@ -1,6 +1,7 @@
 import calendar
 import datetime
 from collections import defaultdict
+import re
 from datetime import date, timedelta
 
 from django.conf import settings
@@ -353,17 +354,29 @@ def podcast_feed(request, slug):
     """Return RSS feed for the given podcast (Apple Podcasts compatible)."""
     podcast = get_object_or_404(Podcast, slug=slug)
 
+    # Remove characters not allowed by XML 1.0 (except tab, newline, carriage return)
+    # This prevents lxml from raising ValueError when building CDATA/text nodes.
+    def xml_safe(value):
+        if value is None:
+            return ""
+        if not isinstance(value, str):
+            value = str(value)
+        return re.sub(r"[\x00-\x08\x0B\x0C\x0E-\x1F]", "", value)
+
     fg = FeedGenerator()
     fg.load_extension("podcast")
-    fg.title(podcast.title)
+    fg.title(xml_safe(podcast.title))
     fg.link(href=podcast.link, rel="alternate")
     fg.language("en-us")
-    fg.description(podcast.description or podcast.title)
+    fg.description(xml_safe(podcast.description or podcast.title))
 
     # Apple Podcasts/iTunes fields
-    fg.podcast.itunes_author(getattr(settings, "PODCAST_AUTHOR", "Saints and Seasons"))
-    fg.podcast.itunes_summary(podcast.description or podcast.title)
-    fg.podcast.itunes_owner(getattr(settings, "PODCAST_OWNER_NAME", "Saints and Seasons"), getattr(settings, "PODCAST_OWNER_EMAIL", "ben@benlocher.com"))
+    fg.podcast.itunes_author(xml_safe(getattr(settings, "PODCAST_AUTHOR", "Saints and Seasons")))
+    fg.podcast.itunes_summary(xml_safe(podcast.description or podcast.title))
+    fg.podcast.itunes_owner(
+        xml_safe(getattr(settings, "PODCAST_OWNER_NAME", "Saints and Seasons")),
+        xml_safe(getattr(settings, "PODCAST_OWNER_EMAIL", "ben@benlocher.com")),
+    )
     fg.podcast.itunes_category("Religion & Spirituality", "Christianity")
     if podcast.image:
         fg.podcast.itunes_image(request.build_absolute_uri(podcast.image.url))
@@ -371,24 +384,24 @@ def podcast_feed(request, slug):
 
     for episode in podcast.episodes.order_by("-date"):
         fe = fg.add_entry()
-        fe.id(episode.slug)
-        fe.title(episode.episode_title)
-        fe.description(episode.episode_short_description)
+        fe.id(xml_safe(episode.slug))
+        fe.title(xml_safe(episode.episode_title))
+        fe.description(xml_safe(episode.episode_short_description))
         fe.pubDate(episode.published_date or episode.created)
         episode_url = request.build_absolute_uri(settings.MEDIA_URL + 'podcasts/' + episode.file_name)
         fe.link(href=episode_url)
-        fe.guid(episode.slug, permalink=False)
+        fe.guid(xml_safe(episode.slug), permalink=False)
         fe.enclosure(episode_url, 0, "audio/mpeg")
         # iTunes episode fields
-        fe.podcast.itunes_title(episode.episode_title)
-        fe.podcast.itunes_subtitle(getattr(episode, "episode_subtitle", ""))
-        fe.podcast.itunes_summary(episode.episode_short_description)
+        fe.podcast.itunes_title(xml_safe(episode.episode_title))
+        fe.podcast.itunes_subtitle(xml_safe(getattr(episode, "episode_subtitle", "")))
+        fe.podcast.itunes_summary(xml_safe(episode.episode_short_description))
         fe.podcast.itunes_explicit("no")
         fe.podcast.itunes_episode(getattr(episode, "episode_number", None))
         fe.podcast.itunes_duration(str(episode.duration) if getattr(episode, "duration", None) else "")
         # Add <content:encoded> for long description if available
         if getattr(episode, "episode_long_description", None):
-            fe.content(episode.episode_long_description, type="CDATA")
+            fe.content(xml_safe(episode.episode_long_description), type="CDATA")
 
     rss = fg.rss_str(pretty=True)
     return HttpResponse(rss, content_type="application/rss+xml")

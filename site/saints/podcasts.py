@@ -76,8 +76,7 @@ ADULT_SCRIPT_PROMPT_TEMPLATE = """
         - Only mention other calendars if the feast is NOT on the current General Roman Calendar.\n
         - When needed, use these exact names: 'Traditional Roman Calendar (1954)', 'Traditional Roman Calendar (1960)', 'Anglican Ordinariate'.\n
         - If multiple non-current calendars apply, list them succinctly (e.g., 'Traditional Roman Calendar (1960) and Anglican Ordinariate').\n
-        - When needed, use these names: 'Traditional Calendar (1954)', 'Traditional Calendar (1960)', 'Anglican Ordinariate'.\n
-        - If the feastis the same on both the 1954 and 1960 calendars,  cobine it to: 'Traditional Calendar' instead of listing both seperately.\n
+        - If the feast is the same on both the 1954 and 1960 calendars,  cobine it to: 'Traditional Calendar' instead of listing both seperately.\n
     - Include 1–2 standout stories or traditions told with engaging detail.\n
     - End with a practical idea for how listeners might commemorate the day, presented warmly.\n
     \n
@@ -142,7 +141,7 @@ def _get_generator() -> PodcastGenerator:
                 outro_filename="outro_music.mp3",
             ),
             output=OutputConfig(filename_prefix="saints_and_seasons"),
-            linkage=PodcastLinkageConfig(podcast_slug="saints-and-seasons"),
+            linkage=PodcastLinkageConfig(podcast_slug="saints_and_seasons"),
         )
     )
 

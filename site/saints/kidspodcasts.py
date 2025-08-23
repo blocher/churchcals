@@ -180,7 +180,7 @@ def _get_generator() -> PodcastGenerator:
                 outro_filename="saintly_adventures_theme.mp3",
             ),
             output=OutputConfig(filename_prefix="saintly_adventures"),
-            linkage=PodcastLinkageConfig(podcast_slug="saintly-adventures"),
+            linkage=PodcastLinkageConfig(podcast_slug="saintly_adventures"),
         )
     )
 
