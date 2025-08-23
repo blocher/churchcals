@@ -42,8 +42,9 @@ PODCAST STRUCTURE:
 2. AUDIO DRAMA: An exciting dramatic retelling of the most interesting legend or story from the saint's life
 3. If there are multiple feasts on this day, choose the MOST INTERESTING one, prioritizing:
    - Current Catholic calendar first
-   - Anglican Ordinariate as final fallback
-   - Traditional calendars (1954, 1960) as final fallback
+   - Anglican Ordinariate as fallback
+   - Traditional calendars (1954 then 1960) as final fallback
+4. You do not need to mention the calendar in the script, just use the name of the feast.
 
 Pick only one story from the list of stories provided in the search results. If there are multiple stories, pick the most interesting one.
 STORYTELLING STYLE:
