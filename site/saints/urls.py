@@ -23,7 +23,15 @@ from rest_framework.response import Response
 from rest_framework.routers import DefaultRouter
 from rest_framework.views import APIView
 from saints.api import BiographyViewSet, CalendarListView, DayView, LiturgicalYearView
-from saints.views import calendar_view, comparison_view, daily_view, home_view, podcast_feed
+from saints.views import (
+    calendar_view,
+    comparison_view,
+    daily_view,
+    home_view,
+    podcast_feed,
+    serve_podcast_audio,
+    podcast_analytics_dashboard,
+)
 
 router = DefaultRouter()
 router.include_root_view = False
@@ -50,6 +58,8 @@ class APIRootView(APIView):
 
 
 urlpatterns = [
+    # Place analytics before the catch-all admin route so it is not shadowed
+    path("admin/analytics/podcasts/", podcast_analytics_dashboard, name="podcast-analytics"),
     path("admin/", admin.site.urls),
     path("", home_view, name="home"),
     path("comparison/", comparison_view, name="comparison"),
@@ -58,6 +68,7 @@ urlpatterns = [
     path("calendar/", calendar_view, name="calendar_view"),
     path("calendar/<int:year>/<int:month>/", calendar_view, name="calendar_view_with_date"),
     path("podcast/<slug:slug>/rss/", podcast_feed, name="podcast-feed"),
+    path("podcast/<slug:podcast_slug>/<slug:episode_slug>.mp3", serve_podcast_audio, name="podcast-audio"),
     # API Endpoints
     path("api/", APIRootView.as_view(), name="api-root"),
     path("api/", include(router.urls)),

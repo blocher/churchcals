@@ -3,6 +3,7 @@ from datetime import date
 
 from django.db import models
 from django.db.models import DateTimeField
+from django.conf import settings
 
 
 class UUIDModel(models.Model):
@@ -329,3 +330,64 @@ class PodcastEpisode(BaseModel):
 
     def __str__(self):
         return self.episode_title
+
+
+class PodcastListenLog(BaseModel):
+    """Per-request listen log for podcast media streaming."""
+
+    podcast = models.ForeignKey(
+        Podcast, on_delete=models.SET_NULL, null=True, blank=True, related_name="listen_logs"
+    )
+    episode = models.ForeignKey(
+        PodcastEpisode, on_delete=models.SET_NULL, null=True, blank=True, related_name="listen_logs"
+    )
+
+    # Request/response context
+    method = models.CharField(max_length=8, blank=True, null=True)
+    path = models.CharField(max_length=2048, blank=True, null=True)
+    referrer = models.CharField(max_length=2048, blank=True, null=True)
+    user_agent = models.TextField(blank=True, null=True)
+    ip_address = models.GenericIPAddressField(blank=True, null=True)
+    x_forwarded_for = models.CharField(max_length=1024, blank=True, null=True)
+    session_key = models.CharField(max_length=128, blank=True, null=True)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="podcast_listens"
+    )
+
+    # Range and transfer details
+    range_header = models.CharField(max_length=255, blank=True, null=True)
+    range_start = models.BigIntegerField(blank=True, null=True)
+    range_end = models.BigIntegerField(blank=True, null=True)
+    total_size = models.BigIntegerField(blank=True, null=True)
+    bytes_served = models.BigIntegerField(blank=True, null=True)
+    is_partial = models.BooleanField(default=False)
+    status_code = models.PositiveSmallIntegerField(blank=True, null=True)
+    response_time_ms = models.PositiveIntegerField(blank=True, null=True)
+
+    # Best-effort geo fields (if GeoIP is configured)
+    geo_country = models.CharField(max_length=128, blank=True, null=True)
+    geo_region = models.CharField(max_length=128, blank=True, null=True)
+    geo_city = models.CharField(max_length=128, blank=True, null=True)
+    geo_latitude = models.FloatField(blank=True, null=True)
+    geo_longitude = models.FloatField(blank=True, null=True)
+
+    # Stable-ish fingerprint (best-effort)
+    fingerprint_sha256 = models.CharField(max_length=64, blank=True, null=True)
+
+    # Playback grouping
+    playback_id = models.CharField(max_length=64, blank=True, null=True)
+    is_seek = models.BooleanField(default=False)
+    request_index = models.PositiveIntegerField(blank=True, null=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["created"]),
+            models.Index(fields=["podcast", "episode"]),
+            models.Index(fields=["ip_address"]),
+            models.Index(fields=["fingerprint_sha256"]),
+            models.Index(fields=["playback_id"]),
+        ]
+
+    def __str__(self):
+        ep = self.episode.episode_title if self.episode else "Unknown episode"
+        return f"Listen from {self.ip_address or 'unknown ip'} on {self.created:%Y-%m-%d %H:%M} to {ep}"

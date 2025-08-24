@@ -1,0 +1,158 @@
+{% extends "admin/base_site.html" %}
+
+{% block title %}Podcast Analytics{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width:1200px;">
+  <h1>Podcast Analytics Dashboard</h1>
+
+  <form method="get" style="margin: 8px 0 16px; display:flex; gap:8px; align-items:flex-end;">
+    <div>
+      <label for="start" style="font-size:12px; color:#666;">Start date</label><br/>
+      <input type="date" id="start" name="start" value="{{ start_date|date:'Y-m-d' }}">
+    </div>
+    <div>
+      <label for="end" style="font-size:12px; color:#666;">End date</label><br/>
+      <input type="date" id="end" name="end" value="{{ end_date|date:'Y-m-d' }}">
+    </div>
+    <div>
+      <button type="submit" class="button">Apply</button>
+      <a href="?" class="button" style="margin-left:4px;">Reset</a>
+    </div>
+  </form>
+
+  <div style="display:flex; gap:24px; flex-wrap:wrap; margin: 16px 0;">
+    <div style="flex:1; min-width:260px; background:#fff; border:1px solid #eee; border-radius:8px; padding:16px;">
+      <div style="font-size:12px; color:#666;">Total Unique Listens</div>
+      <div style="font-size:32px; font-weight:700;">{{ total_listens|default:0 }}</div>
+    </div>
+    <div style="flex:1; min-width:260px; background:#fff; border:1px solid #eee; border-radius:8px; padding:16px;">
+      <div style="font-size:12px; color:#666;">Total Data Transferred</div>
+      <div style="font-size:32px; font-weight:700;">{{ total_bytes_human }}</div>
+      <div style="font-size:12px; color:#999;">({{ total_bytes|default:0 }} bytes)</div>
+    </div>
+  </div>
+
+  <div style="display:flex; gap:24px; flex-wrap:wrap;">
+    <div style="flex:2; min-width:380px; background:#fff; border:1px solid #eee; border-radius:8px; padding:16px;">
+      <h2 style="margin-top:0;">Unique Listens by Day</h2>
+      <table class="admin-table" style="width:100%; border-collapse:collapse;">
+        <thead>
+          <tr>
+            <th style="text-align:left; padding:8px; border-bottom:1px solid #eee;">Date</th>
+            <th style="text-align:right; padding:8px; border-bottom:1px solid #eee;">Listens</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in listens_by_day %}
+          <tr>
+            <td style="padding:8px; border-bottom:1px solid #f5f5f5;">{{ row.day }}</td>
+            <td style="padding:8px; border-bottom:1px solid #f5f5f5; text-align:right;">{{ row.c }}</td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="2" style="padding:8px;">No data</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div style="flex:1; min-width:300px; background:#fff; border:1px solid #eee; border-radius:8px; padding:16px;">
+      <h2 style="margin-top:0;">Top Countries (Unique Listens)</h2>
+      <table class="admin-table" style="width:100%; border-collapse:collapse;">
+        <thead>
+          <tr>
+            <th style="text-align:left; padding:8px; border-bottom:1px solid #eee;">Country</th>
+            <th style="text-align:right; padding:8px; border-bottom:1px solid #eee;">Listens</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in top_countries %}
+          <tr>
+            <td style="padding:8px; border-bottom:1px solid #f5f5f5;">{{ row.geo_country }}</td>
+            <td style="padding:8px; border-bottom:1px solid #f5f5f5; text-align:right;">{{ row.c }}</td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="2" style="padding:8px;">No data</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div style="display:flex; gap:24px; flex-wrap:wrap; margin-top:24px;">
+    <div style="flex:1; min-width:380px; background:#fff; border:1px solid #eee; border-radius:8px; padding:16px;">
+      <h2 style="margin-top:0;">Top Episodes (Unique Listens)</h2>
+      <table class="admin-table" style="width:100%; border-collapse:collapse;">
+        <thead>
+          <tr>
+            <th style="text-align:left; padding:8px; border-bottom:1px solid #eee;">Episode</th>
+            <th style="text-align:left; padding:8px; border-bottom:1px solid #eee;">Podcast</th>
+            <th style="text-align:right; padding:8px; border-bottom:1px solid #eee;">Listens</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in top_episodes %}
+          <tr>
+            <td style="padding:8px; border-bottom:1px solid #f5f5f5;">{{ row.episode__episode_title }}</td>
+            <td style="padding:8px; border-bottom:1px solid #f5f5f5;">{{ row.episode__podcast__title }}</td>
+            <td style="padding:8px; border-bottom:1px solid #f5f5f5; text-align:right;">{{ row.c }}</td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="2" style="padding:8px;">No data</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div style="flex:1; min-width:380px; background:#fff; border:1px solid #eee; border-radius:8px; padding:16px;">
+      <h2 style="margin-top:0;">Top Podcasts (Unique Listens)</h2>
+      <table class="admin-table" style="width:100%; border-collapse:collapse;">
+        <thead>
+          <tr>
+            <th style="text-align:left; padding:8px; border-bottom:1px solid #eee;">Podcast</th>
+            <th style="text-align:right; padding:8px; border-bottom:1px solid #eee;">Unique Listens</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in top_podcasts %}
+          <tr>
+            <td style="padding:8px; border-bottom:1px solid #f5f5f5;">{{ row.podcast__title }}</td>
+            <td style="padding:8px; border-bottom:1px solid #f5f5f5; text-align:right;">{{ row.c }}</td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="2" style="padding:8px;">No data</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div style="display:flex; gap:24px; flex-wrap:wrap; margin-top:24px;">
+    <div style="flex:1; min-width:380px; background:#fff; border:1px solid #eee; border-radius:8px; padding:16px;">
+      <h2 style="margin-top:0;">Top User Agents (Unique Listens)</h2>
+      <table class="admin-table" style="width:100%; border-collapse:collapse;">
+        <thead>
+          <tr>
+            <th style="text-align:left; padding:8px; border-bottom:1px solid #eee;">User Agent</th>
+            <th style="text-align:right; padding:8px; border-bottom:1px solid #eee;">Unique Listens</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in top_user_agents %}
+          <tr>
+            <td style="padding:8px; border-bottom:1px solid #f5f5f5;">{{ row.user_agent }}</td>
+            <td style="padding:8px; border-bottom:1px solid #f5f5f5; text-align:right;">{{ row.c }}</td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="2" style="padding:8px;">No data</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div style="margin-top:24px;">
+    <a class="button" href="{% url 'admin:index' %}">Back to admin</a>
+  </div>
+</div>
+{% endblock %}
+
+

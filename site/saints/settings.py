@@ -179,3 +179,6 @@ if DEBUG:
 # django-cron settings
 CRON_CLASSES = [
 ]
+# GeoIP configuration (requires GeoLite2 database files deployed)
+GEOIP_PATH = os.getenv("GEOIP_PATH", os.path.join(BASE_DIR, "geoip"))
+

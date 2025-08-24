@@ -3,14 +3,21 @@ import datetime
 from collections import defaultdict
 import re
 from datetime import date, timedelta
+import os
+import time
+import hashlib
+from typing import Iterator, Optional, Tuple
 
 from django.conf import settings
-from django.http import Http404, HttpResponse, HttpResponseRedirect
+from django.http import Http404, HttpResponse, HttpResponseRedirect, StreamingHttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
 from feedgen.feed import FeedGenerator
-from saints.models import CalendarEvent, Podcast
+from saints.models import CalendarEvent, Podcast, PodcastEpisode, PodcastListenLog
+from django.core.files.storage import default_storage
+from django.contrib.admin.views.decorators import staff_member_required
+from django.utils.dateparse import parse_date
 
 
 def first_sunday_of_advent(year):
@@ -388,10 +395,18 @@ def podcast_feed(request, slug):
         fe.title(xml_safe(episode.episode_title))
         fe.description(xml_safe(episode.episode_short_description))
         fe.pubDate(episode.published_date or episode.created)
-        episode_url = request.build_absolute_uri(settings.MEDIA_URL + 'podcasts/' + episode.file_name)
+        # Use streaming audio endpoint for enclosures
+        episode_path = reverse("podcast-audio", kwargs={"podcast_slug": podcast.slug, "episode_slug": episode.slug})
+        episode_url = request.build_absolute_uri(episode_path)
         fe.link(href=episode_url)
         fe.guid(xml_safe(episode.slug), permalink=False)
-        fe.enclosure(episode_url, 0, "audio/mpeg")
+        # Best-effort file length determination for enclosure length
+        try:
+            rel_path = os.path.join("podcasts", episode.file_name)
+            size = default_storage.size(rel_path)  # type: ignore[arg-type]
+        except Exception:
+            size = 0
+        fe.enclosure(episode_url, size, "audio/mpeg")
         # iTunes episode fields
         fe.podcast.itunes_title(xml_safe(episode.episode_title))
         fe.podcast.itunes_subtitle(xml_safe(getattr(episode, "episode_subtitle", "")))
@@ -405,3 +420,352 @@ def podcast_feed(request, slug):
 
     rss = fg.rss_str(pretty=True)
     return HttpResponse(rss, content_type="application/rss+xml")
+
+
+def _get_client_ip(request) -> Tuple[Optional[str], Optional[str]]:
+    xff = request.META.get("HTTP_X_FORWARDED_FOR")
+    if xff:
+        # X-Forwarded-For may contain multiple IPs; the first is the original client
+        parts = [p.strip() for p in xff.split(",") if p.strip()]
+        ip = parts[0] if parts else None
+        return ip, xff
+    return request.META.get("REMOTE_ADDR"), None
+
+
+def _best_effort_geo(ip: Optional[str]):
+    geo = {
+        "geo_country": None,
+        "geo_region": None,
+        "geo_city": None,
+        "geo_latitude": None,
+        "geo_longitude": None,
+    }
+    if not ip:
+        return geo
+    try:
+        from django.contrib.gis.geoip2 import GeoIP2  # type: ignore
+
+        g = GeoIP2()
+        city = g.city(ip)
+        if city:
+            geo.update(
+                {
+                    "geo_country": city.get("country_code"),
+                    "geo_region": city.get("region"),
+                    "geo_city": city.get("city"),
+                    "geo_latitude": city.get("latitude"),
+                    "geo_longitude": city.get("longitude"),
+                }
+            )
+    except Exception:
+        # GeoIP not configured or lookup failed
+        pass
+    return geo
+
+
+def _humanize_bytes(num: Optional[int]) -> str:
+    if not num or num < 0:
+        return "0 B"
+    units = ["B", "KB", "MB", "GB", "TB", "PB"]
+    size = float(num)
+    idx = 0
+    while size >= 1000.0 and idx < len(units) - 1:
+        size /= 1000.0
+        idx += 1
+    if idx == 0:
+        return f"{int(size)} {units[idx]}"
+    return f"{size:.2f} {units[idx]}"
+
+
+def _file_iterator(path: str, start: int, length: int, chunk_size: int = 8192) -> Iterator[bytes]:
+    with open(path, "rb") as f:
+        f.seek(start)
+        remaining = length
+        while remaining > 0:
+            read_len = min(chunk_size, remaining)
+            data = f.read(read_len)
+            if not data:
+                break
+            remaining -= len(data)
+            yield data
+
+
+def _resolve_storage_path(rel_path: str) -> Tuple[Optional[str], Optional[int]]:
+    """Return a local filesystem path and size if available for the storage key."""
+    try:
+        # Prefer storage.path if available
+        path = default_storage.path(rel_path)  # type: ignore[attr-defined]
+        size = os.path.getsize(path)
+        return path, size
+    except Exception:
+        # Fallback: try to open to compute size via storage API
+        try:
+            size = default_storage.size(rel_path)  # type: ignore[arg-type]
+        except Exception:
+            size = None
+        return None, size
+
+
+def _parse_range_header(range_header: str, total_size: int) -> Optional[Tuple[int, int]]:
+    # Expected format: bytes=start-end
+    if not range_header or not range_header.startswith("bytes="):
+        return None
+    try:
+        ranges = range_header.split("=", 1)[1]
+        start_str, end_str = ranges.split("-", 1)
+        if start_str == "":
+            # suffix range: last N bytes
+            suffix = int(end_str)
+            if suffix <= 0:
+                return None
+            start = max(0, total_size - suffix)
+            end = total_size - 1
+        else:
+            start = int(start_str)
+            end = int(end_str) if end_str else total_size - 1
+        if start > end or start < 0 or end >= total_size:
+            return None
+        return start, end
+    except Exception:
+        return None
+
+
+def _build_fingerprint(ip: Optional[str], ua: Optional[str], session_key: Optional[str]) -> str:
+    base = f"{ip or ''}|{ua or ''}|{session_key or ''}"
+    return hashlib.sha256(base.encode("utf-8")).hexdigest()
+
+
+def serve_podcast_audio(request, podcast_slug: str, episode_slug: str):
+    """Stream MP3 audio with HTTP Range support and listen logging."""
+    podcast = get_object_or_404(Podcast, slug=podcast_slug)
+    episode = get_object_or_404(PodcastEpisode, slug=episode_slug, podcast=podcast)
+
+    rel_path = os.path.join("podcasts", episode.file_name)
+    local_path, total_size = _resolve_storage_path(rel_path)
+    if total_size is None:
+        raise Http404("Audio file not found")
+
+    mime_type = "audio/mpeg"
+    range_header = request.META.get("HTTP_RANGE")
+    status_code = 200
+    start = 0
+    end = total_size - 1
+    is_partial = False
+    if range_header:
+        rng = _parse_range_header(range_header, total_size)
+        if rng:
+            start, end = rng
+            status_code = 206
+            is_partial = True
+
+    length = end - start + 1
+
+    # HEAD support
+    if request.method == "HEAD":
+        response = HttpResponse(status=status_code, content_type=mime_type)
+        response["Accept-Ranges"] = "bytes"
+        response["Content-Length"] = str(length)
+        if is_partial:
+            response["Content-Range"] = f"bytes {start}-{end}/{total_size}"
+        response["Content-Disposition"] = f"inline; filename=\"{os.path.basename(episode.file_name)}\""
+        return response
+
+    # Build response
+    if local_path:
+        iterator = _file_iterator(local_path, start, length)
+        response = StreamingHttpResponse(iterator, status=status_code, content_type=mime_type)
+    else:
+        # Storage without local path: read via storage
+        f = default_storage.open(rel_path, "rb")  # type: ignore[arg-type]
+        try:
+            if start:
+                f.seek(start)
+        except Exception:
+            pass
+
+        def _stream() -> Iterator[bytes]:
+            remaining = length
+            while remaining > 0:
+                chunk = f.read(min(8192, remaining))
+                if not chunk:
+                    break
+                remaining -= len(chunk)
+                yield chunk
+
+        response = StreamingHttpResponse(_stream(), status=status_code, content_type=mime_type)
+
+    response["Accept-Ranges"] = "bytes"
+    response["Content-Length"] = str(length)
+    if is_partial:
+        response["Content-Range"] = f"bytes {start}-{end}/{total_size}"
+    response["Content-Disposition"] = f"inline; filename=\"{os.path.basename(episode.file_name)}\""
+
+    # Logging with playback grouping
+    t0 = time.time()
+    client_ip, xff = _get_client_ip(request)
+    geo = _best_effort_geo(client_ip)
+    ua = request.META.get("HTTP_USER_AGENT")
+    session_key = getattr(request, "session", None) and request.session.session_key
+    fingerprint = _build_fingerprint(client_ip, ua, session_key)
+
+    # Session-scoped playback grouping per episode
+    if hasattr(request, "session"):
+        session_playback_key = f"playback:{podcast.slug}:{episode.slug}"
+        playback_info = request.session.get(session_playback_key)
+        if not playback_info:
+            playback_id = hashlib.sha256(f"{fingerprint}|{episode.slug}|{time.time()}".encode("utf-8")).hexdigest()[:32]
+            request_index = 0
+        else:
+            playback_id = playback_info.get("id")
+            request_index = int(playback_info.get("n", 0)) + 1
+        request.session[session_playback_key] = {"id": playback_id, "n": request_index}
+    else:
+        playback_id = hashlib.sha256(f"{fingerprint}|{episode.slug}".encode("utf-8")).hexdigest()[:32]
+        request_index = None
+
+    is_seek = bool(is_partial and start > 0)
+
+    log = PodcastListenLog.objects.create(
+        podcast=podcast,
+        episode=episode,
+        method=request.method,
+        path=request.get_full_path()[:2048],
+        referrer=request.META.get("HTTP_REFERER", "")[:2048] or None,
+        user_agent=ua,
+        ip_address=client_ip,
+        x_forwarded_for=xff,
+        session_key=session_key,
+        user=request.user if getattr(request, "user", None) and request.user.is_authenticated else None,
+        range_header=range_header,
+        range_start=start,
+        range_end=end,
+        total_size=total_size,
+        bytes_served=length,
+        is_partial=is_partial,
+        status_code=status_code,
+        fingerprint_sha256=fingerprint,
+        playback_id=playback_id,
+        is_seek=is_seek,
+        request_index=request_index,
+        **geo,
+    )
+
+    # Defer measuring response time; attach a close callback
+    def _close():
+        try:
+            dt = int((time.time() - t0) * 1000)
+            PodcastListenLog.objects.filter(pk=log.pk).update(response_time_ms=dt)
+        except Exception:
+            pass
+
+    response.close = (lambda orig_close=response.close: (lambda: (orig_close(), _close())))()
+
+    return response
+
+
+@staff_member_required
+def podcast_analytics_dashboard(request):
+    """Admin-only dashboard with podcast listening metrics."""
+    # Aggregate metrics
+    from django.db.models import Count, Sum, Value, Func
+    from django.db.models.functions import TruncDate, Coalesce, Concat
+    from django.utils import timezone as _tz
+
+    now = _tz.now()
+    # Date range filters (inclusive). Defaults to last 30 days.
+    start_param = request.GET.get("start")
+    end_param = request.GET.get("end")
+    start_date = parse_date(start_param) if start_param else None
+    end_date = parse_date(end_param) if end_param else None
+    if not end_date:
+        end_date = now.date()
+    if not start_date:
+        start_date = end_date - datetime.timedelta(days=30)
+
+    logs_qs = PodcastListenLog.objects.filter(created__date__gte=start_date, created__date__lte=end_date)
+    # Build a consistent unique-listen key per requestor
+    logs_qs = logs_qs.annotate(
+        ukey=Coalesce(
+            "fingerprint_sha256",
+            "playback_id",
+            Func(
+                Concat("ip_address", Value("|"), "user_agent", Value("|"), "session_key"),
+                function="md5",
+            ),
+        )
+    )
+
+    # Unique listens: distinct by (episode, fingerprint)
+    total_listens = logs_qs.values("episode", "ukey").distinct().count()
+    total_bytes = logs_qs.aggregate(b=Sum("bytes_served")).get("b") or 0
+    total_bytes_human = _humanize_bytes(total_bytes)
+
+    top_episodes = (
+        logs_qs.values(
+            "episode__uuid",
+            "episode__episode_title",
+            "episode__podcast__title",
+        )
+        .annotate(c=Count("ukey", distinct=True))
+        .order_by("-c")[:10]
+    )
+
+    top_podcasts = (
+        logs_qs.values("podcast__uuid", "podcast__title", "episode", "ukey")
+        .distinct()
+        .values("podcast__uuid", "podcast__title")
+        .annotate(c=Count("podcast__uuid"))
+        .order_by("-c")[:10]
+    )
+
+    # Unique listens per day: distinct (episode, fingerprint) per day
+    raw_by_day = (
+        logs_qs
+        .annotate(day=TruncDate("created"))
+        .values("day", "episode", "ukey")
+        .distinct()
+        .values("day")
+        .annotate(c=Count("day"))
+        .order_by("day")
+    )
+    # Fill all days in the selected range
+    _day_counts = {row["day"]: row["c"] for row in raw_by_day}
+    listens_by_day = []
+    _d = start_date
+    while _d <= end_date:
+        listens_by_day.append({"day": _d, "c": _day_counts.get(_d, 0)})
+        _d += datetime.timedelta(days=1)
+
+    # Unique listens per country: distinct (episode, fingerprint) per country
+    top_countries = (
+        logs_qs.exclude(geo_country__isnull=True)
+        .values("geo_country", "episode", "ukey")
+        .distinct()
+        .values("geo_country")
+        .annotate(c=Count("geo_country"))
+        .order_by("-c")[:10]
+    )
+
+    # Unique listens per user agent: distinct (episode, fingerprint) per UA
+    top_user_agents = (
+        logs_qs.exclude(user_agent__isnull=True)
+        .values("user_agent", "episode", "ukey")
+        .distinct()
+        .values("user_agent")
+        .annotate(c=Count("user_agent"))
+        .order_by("-c")[:10]
+    )
+
+    context = {
+        "total_listens": total_listens,
+        "total_bytes": total_bytes,
+        "total_bytes_human": total_bytes_human,
+        "top_episodes": top_episodes,
+        "top_podcasts": top_podcasts,
+        "listens_by_day": listens_by_day,
+        "top_countries": top_countries,
+        "top_user_agents": top_user_agents,
+        "start_date": start_date,
+        "end_date": end_date,
+    }
+    return render(request, "saints/admin/analytics.html", context)
