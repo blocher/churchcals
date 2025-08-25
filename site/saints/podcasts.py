@@ -98,7 +98,7 @@ ADULT_SCRIPT_PROMPT_TEMPLATE = """
     - The model interprets emotional context directly from the text. Descriptive cues like "he said quietly" or "she replied with warmth" and punctuation will influence delivery.
     - Use non-speech audio tags in square brackets to shape delivery and sound design. Categories include:
     - Emotions and delivery: [thoughtfully], [warmly], [reverently], [with quiet awe], [gently]
-    - Audio events: [distant church bell], [soft choir], [pages turning], [footsteps in the nave], [congregation murmurs] NOTE: Use these VERY sparingly.
+    - Audio events: [distant church bell], [soft choir], [pages turning], [footsteps in the nave], [congregation murmurs] NOTE: Make a sound when transitioning to the first saint, and between saints, and at the end, but otherwise use very sparingly if at all.
     - Overall direction: [quiet chapel], [evening vespers], [pilgrimage], [study], [procession]
     - You can signal interruptions with punctuation and tags:
         - "[gently interjecting] May I add—"
