@@ -520,17 +520,6 @@ class PodcastGenerator:
         return result
 
     # --- TTS helpers ---
-    @staticmethod
-    def _clean_text_for_tts(text: str) -> str:
-        import re
-        cleaned_text = re.sub(r"\[.*?\]", "", text)
-        cleaned_text = re.sub(r"\b[Pp]ause\b", "", cleaned_text)
-        cleaned_text = re.sub(r"\b[Bb]reak\b", "", cleaned_text)
-        cleaned_text = re.sub(r"\b[Ss]ilence\b", "", cleaned_text)
-        cleaned_text = re.sub(r"\s+", " ", cleaned_text)
-        return cleaned_text.strip()
-
-    
 
     def _normalize_script_and_voice_map(
         self, script_obj: Any
@@ -572,36 +561,66 @@ class PodcastGenerator:
 
         # Build DialogueInput list, splitting overly long lines into smaller chunks
         def _chunk_text(text: str, max_chunk_len: int = 900) -> List[str]:
-            """Chunk text while avoiding splits inside bracketed tags like [whispering] or [church bells]."""
+            """Chunk text while respecting ElevenLabs v3 bracketed tags.
+            - Never split inside square-bracket tags like [warmly] or [church bells].
+            - Prefer to split on whitespace when not inside a tag.
+            - If a tag would cross the boundary, extend the chunk until the tag closes.
+            """
             if len(text) <= max_chunk_len:
                 return [text]
             chunks: List[str] = []
-            start = 0
-            min_backtrack = int(max_chunk_len * 0.6)
-            while start < len(text):
-                end = min(start + max_chunk_len, len(text))
-                # Prefer to break on whitespace for better prosody
-                if end < len(text):
-                    ws = text.rfind(" ", start + min_backtrack, end)
-                    if ws != -1:
-                        end = ws
+            i = 0
+            n = len(text)
+            min_soft_len = int(max_chunk_len * 0.6)
+            while i < n:
+                start = i
+                bracket_depth = 0
+                last_ws_outside = -1
+                j = i
+                # First pass: advance up to max_chunk_len, track bracket depth and last whitespace outside tags
+                while j < n and (j - start) < max_chunk_len:
+                    ch = text[j]
+                    if ch == "[":
+                        bracket_depth += 1
+                    elif ch == "]":
+                        if bracket_depth > 0:
+                            bracket_depth -= 1
+                    if ch.isspace() and bracket_depth == 0:
+                        last_ws_outside = j
+                    j += 1
 
-                candidate = text[start:end].strip()
-                # If the candidate chunk contains an unmatched '[' (e.g., split inside a tag),
-                # backtrack to the last '[' so the entire tag moves to the next chunk.
-                if candidate.count("[") > candidate.count("]"):
-                    last_open = candidate.rfind("[")
-                    if last_open != -1:
-                        candidate = candidate[:last_open].strip()
-                        end = start + last_open
+                cut: int
+                if j >= n:
+                    cut = n
+                else:
+                    if bracket_depth > 0:
+                        # We are inside a tag at the boundary; keep going until tag closes
+                        while j < n and bracket_depth > 0:
+                            ch = text[j]
+                            if ch == "[":
+                                bracket_depth += 1
+                            elif ch == "]":
+                                bracket_depth -= 1
+                            j += 1
+                        # Optionally, extend to next whitespace for natural pause
+                        while j < n and not text[j].isspace():
+                            j += 1
+                        cut = j
+                    else:
+                        # Prefer to cut at the last whitespace outside tags if far enough into the window
+                        if last_ws_outside != -1 and (last_ws_outside - start) >= min_soft_len:
+                            cut = last_ws_outside
+                        else:
+                            cut = j
 
-                if candidate:
-                    chunks.append(candidate)
-                # Guard against infinite loop in rare cases
-                if end <= start:
-                    end = min(start + max_chunk_len, len(text))
-                start = end
-            return [c for c in chunks if c]
+                piece = text[start:cut].strip()
+                if piece:
+                    chunks.append(piece)
+                i = cut
+                # Skip any subsequent whitespace so the next piece starts on content
+                while i < n and text[i].isspace():
+                    i += 1
+            return chunks
 
         flat_inputs: List[DialogueInput] = []
         for line in normalized_lines:
@@ -609,8 +628,12 @@ class PodcastGenerator:
             if speaker not in voice_map:
                 raise KeyError(f"No voice_id provided for speaker: {speaker}")
             voice_id = voice_map[speaker]
+            # Preserve ElevenLabs v3 bracketed tags and chunk safely around them
             text_for_dialogue = line["text"]
             for piece in _chunk_text(text_for_dialogue):
+                piece = piece.strip()
+                if not piece:
+                    continue
                 flat_inputs.append(DialogueInput(text=piece, voice_id=voice_id))
 
         # Batch inputs to respect ElevenLabs v3 request limit (max 3000 chars total text)
