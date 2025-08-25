@@ -113,7 +113,7 @@ class KidsPodcastScriptModel(BaseModel):
 @dataclass
 class AIConfig:
     provider: str = "openai"  # 'openai', 'grok', 'anthropic'
-    model: str = "gpt-4.1"
+    model: str = "gpt-5"
     base_url: Optional[str] = None
     api_key_env: Optional[str] = None
 
@@ -1077,7 +1077,23 @@ class PodcastGenerator:
         eastern_tz = ZoneInfo("America/New_York")
         eastern_now = timezone.now().astimezone(eastern_tz)
         tomorrow = eastern_now.date() + datetime.timedelta(days=1)
-        if PodcastEpisode.objects.filter(date=tomorrow).exists():
+        # Determine which podcast this generator is targeting
+        podcast: Optional[Podcast] = None
+        if self.config.linkage.podcast_uuid:
+            try:
+                podcast = Podcast.objects.get(pk=self.config.linkage.podcast_uuid)
+            except Podcast.DoesNotExist:
+                podcast = None
+        if not podcast and self.config.linkage.podcast_slug:
+            try:
+                podcast = Podcast.objects.get(slug=self.config.linkage.podcast_slug)
+            except Podcast.DoesNotExist:
+                podcast = None
+        if not podcast:
+            podcast = Podcast.objects.filter(religion="catholic").order_by("-created").first()
+
+        # Only block if an episode for this specific podcast already exists for tomorrow
+        if PodcastEpisode.objects.filter(date=tomorrow, podcast=podcast).exists():
             return None
         today_5pm = self._create_publish_date(None)
         return self.create_full_podcast(tomorrow, today_5pm)
