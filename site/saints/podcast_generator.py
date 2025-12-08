@@ -112,8 +112,8 @@ class KidsPodcastScriptModel(BaseModel):
 
 @dataclass
 class AIConfig:
-    provider: str = "openai"  # 'openai', 'grok', 'anthropic'
-    model: str = "gpt-5"
+    provider: str = "gemini"  # 'openai', 'grok', 'anthropic', 'gemini'
+    model: str = "gemini-3-pro-preview"
     base_url: Optional[str] = None
     api_key_env: Optional[str] = None
 
@@ -189,6 +189,12 @@ class PodcastGenerator:
             if not api_key:
                 raise ValueError("ANTHROPIC_API_KEY environment variable is required for Anthropic")
             return Anthropic(api_key=api_key)
+        elif cfg.provider == "gemini":
+            from google import genai
+            api_key = os.getenv(cfg.api_key_env or "GEMINI_API_KEY")
+            if not api_key:
+                raise ValueError("GEMINI_API_KEY environment variable is required for Gemini")
+            return genai.Client(api_key=api_key, http_options={'api_version': 'v1beta'})
         else:
             raise ValueError(f"Unsupported AI provider: {cfg.provider}")
 
@@ -250,6 +256,47 @@ class PodcastGenerator:
                 parsed_json = _json.loads(content)
                 return response_format_model.model_validate(parsed_json)
             return content
+        elif provider == "gemini":
+            from google.genai import types
+
+            contents = []
+            system_instruction = None
+
+            for msg in messages:
+                if msg["role"] == "system":
+                    system_instruction = msg["content"]
+                elif msg["role"] == "user":
+                    contents.append(msg["content"])
+                else:
+                    contents.append(f"{msg.get('role', 'user')}: {msg.get('content', '')}")
+
+            config = types.GenerateContentConfig(
+                response_mime_type="application/json",
+                response_schema=response_format_model,
+                system_instruction=system_instruction,
+            )
+
+            response = client.models.generate_content(
+                model=model,
+                contents=contents,
+                config=config,
+            )
+            
+            # If response_schema is passed, google.genai 0.3+ typically returns a parsed object in .parsed
+            if hasattr(response, 'parsed') and response.parsed:
+                return response.parsed
+            
+            # Fallback
+            if hasattr(response, 'text') and response.text:
+                import json as _json
+                try:
+                    parsed_json = _json.loads(response.text)
+                    return response_format_model.model_validate(parsed_json)
+                except Exception:
+                    pass
+            
+            # If we are here, something went wrong or response format is different
+            return response
         else:
             # Grok / OpenAI-compatible JSON mode
             enhanced_messages = messages.copy()
@@ -388,6 +435,16 @@ class PodcastGenerator:
                     ],
                 )
                 return response.content[0].text.strip()
+            elif provider == "gemini":
+                from google.genai import types
+                response = client.models.generate_content(
+                    model=model,
+                    contents=[prompt],
+                    config=types.GenerateContentConfig(
+                        system_instruction="You are a knowledgeable Catholic researcher and podcast content creator."
+                    )
+                )
+                return response.text.strip()
             else:
                 response = client.chat.completions.create(
                     model=model,
@@ -430,6 +487,16 @@ class PodcastGenerator:
                         ],
                     )
                     summary = response.content[0].text.strip()
+                elif provider == "gemini":
+                    from google.genai import types
+                    response = client.models.generate_content(
+                        model=model,
+                        contents=[prompt],
+                        config=types.GenerateContentConfig(
+                            system_instruction="You are a knowledgeable Catholic researcher and podcast content creator."
+                        )
+                    )
+                    summary = response.text.strip()
                 else:
                     response = client.chat.completions.create(
                         model=model,

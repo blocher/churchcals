@@ -160,7 +160,7 @@ Make this an adventure story that kids will want to listen to again and again!
 def _get_generator() -> PodcastGenerator:
     return PodcastGenerator(
         GeneratorConfig(
-            ai=AIConfig(provider="openai", model="gpt-5"),
+            ai=AIConfig(provider="gemini", model="gemini-3-pro-preview"),
             prompts=PromptsConfig(
                 identify_research_queries_prompt=KIDS_IDENTIFY_QUERIES_PROMPT,
                 structured_bio_prompt=KIDS_STRUCTURED_BIO_PROMPT,

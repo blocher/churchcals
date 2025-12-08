@@ -112,7 +112,7 @@ ADULT_SCRIPT_PROMPT_TEMPLATE = """
 def _get_generator() -> PodcastGenerator:
     return PodcastGenerator(
         GeneratorConfig(
-            ai=AIConfig(provider="openai", model="gpt-5"),
+            ai=AIConfig(provider="gemini", model="gemini-3-pro-preview"),
             prompts=PromptsConfig(
                 identify_research_queries_prompt=ADULT_IDENTIFY_QUERIES_PROMPT,
                 structured_bio_prompt=ADULT_STRUCTURED_BIO_PROMPT,
