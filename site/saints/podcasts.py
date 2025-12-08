@@ -81,24 +81,12 @@ ADULT_SCRIPT_PROMPT_TEMPLATE = """
     - End with a practical idea for how listeners might commemorate the day, presented warmly.\n
     \n
     Use simple, flowing dialogue with natural energy. Format clearly.\n
-    Include ElevenLabs-compatible voice instructions in square brackets when appropriate to enhance delivery:\n
-    - [warmly] for moments of connection and kindness\n
-    - [thoughtfully] for reflective passages\n
-    - [with wonder] for moments of amazement\n
-    - [gently] for tender or moving stories\n
-    - [appreciatively] for inspiring stories\n
-    - [softly] for intimate or sacred moments\n
-    - [cheerfully] for joyful moments\n
-    - [earnestly] for sincere or important points\n
-    - [admiringly] for remarkable achievements\n
-    - [with interest] for intriguing details\n
-    Use these naturally to enhance the conversational flow without overdoing it.\n
     \n
     PROMPTING (v3 model guidance):
     - The model interprets emotional context directly from the text. Descriptive cues like "he said quietly" or "she replied with warmth" and punctuation will influence delivery.
     - Use non-speech audio tags in square brackets to shape delivery and sound design. Categories include:
     - Emotions and delivery: [thoughtfully], [warmly], [reverently], [with quiet awe], [gently]
-    - Audio events: [distant church bell], [soft choir], [pages turning], [footsteps in the nave], [congregation murmurs] NOTE: Make a sound when transitioning to the first saint, and between saints, and at the end, but otherwise use very sparingly if at all.
+    - Audio events: [distant church bell], [soft choir], [pages turning], [footsteps in the nave], [congregation murmurs] NOTE: Make a sound when transitioning to the first saint, and between saints, and at the end, but otherwise use very sparingly if at all. No sound should ever last longer than 3 seconds.
     - Overall direction: [quiet chapel], [evening vespers], [pilgrimage], [study], [procession]
     - You can signal interruptions with punctuation and tags:
         - "[gently interjecting] May I add—"
@@ -132,8 +120,8 @@ def _get_generator() -> PodcastGenerator:
             voices=VoiceConfig(
                 mode="fixed",
                 fixed_voice_map={
-                    "John": "gs0tAILXbY5DNrJrsM6F",
-                    "Maria": "zGjIP4SZlMnY9m93k97r",
+                    "John": "EkK5I93UQWFDigLMpZcX",
+                    "Maria": "aMSt68OGf4xUZAnLpTU8",
                 },
             ),
             audio=AudioAssetsConfig(

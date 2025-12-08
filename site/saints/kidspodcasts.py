@@ -112,23 +112,34 @@ IMPORTANT GUIDELINES:
 - Spell out all ambiguous words, names, and places so they can be read as audio, for example, 'Pius X' should be spelled out as 'Pius the Tenth, so that it is clear to read.'
 - This script is meant for being spoken, so write as if it were spoken umabiguosly word for word, even if it's not the way you'd write it 
 
-Available ElevenLabs voices (id, descriptors, gender):
-- 7tRwuZTD1EWi6nydVerp: ['Main Blurb Narrator'] (male) ALWAYS and only use this for the intro blurb
-- cfc7wVYq4gw4OpcEEAom: ['Main Story Narrator'] (female) ALWAYS and only use this for the narrator in the story
-- vfaqCOvlrKi4Zp7C2IAm: ['Evil','Demonic','Creepy'] (male)
-- yjJ45q8TVCrtMhEKurxY: ['Mad Scientist', 'Quirky'] (male)
-- oR4uRy4fHDUGGISL0Rev: ['Wise', 'Wizard', 'Merlin', 'Magic'] (male)
-- PPzYpIqttlTYA83688JI: ['Pirate', 'Adventerous'] (male)
-- ZF6FPAbjXT4488VcRRnw: ['Young', 'British', 'Bookworm'] (female)
-- y2Y5MeVPm6ZQXK64WUui: ['Old', 'Storyteller', 'Wise'] (male)
-- Wu86LpENEn32PwtU2hv1: ['Deeper', 'Cheery'] (female)
-- FUfBrNit0NNZAwb58KWH: ['Generic', 'Main Character'] (female)
-- EkK5I93UQWFDigLMpZcX: ['Deep', 'Main Character','Narrator'] (male)
-- qBDvhofpxp92JgXJxDjB: ['Female', 'calming', 'youthful'] (female)
-- c7XGL37TTXR5zdorzHX9: ['Gossipy', 'Sassy', 'Teenager'] (female)
-- 3vk47KpWZzIrWkdEhumS: ['Chatty', 'Laid back'] (male)
-- b3tuFWghbXYRa9Cs9MJf: ['Narrator', 'Deep'] (male)
-- 0TfZ4rvne3QI7UjDxVkM: ['Childlike', 'High pitched'] (female)
+Available ElevenLabs voices (id, description):
+- EkK5I93UQWFDigLMpZcX: A slightly husky and bassy voice with a standard American accent. Modulated, controlled, and direct and perfect for audiobooks, captivating narrations, or storytelling, or other professional voiceover work. ALWAYS and only use this for the intro blurb
+- Z3R5wn05IrDiVCyEkUrK: A young, mature female narrator with a mysterious and emotive tone, perfect for fantasy, romance, urban fantasy, and wellness. ALWAYS and only use this for the narrator in the story
+- aMSt68OGf4xUZAnLpTU8: A grounded female professional, great for podcasts or ConvoAI.
+- tnSpp4vdxKPjI9w0GnoV: Upbeat and clear, female
+- Hjzqw9NR0xFMYU9Us0DL: A dark, brooding character voice, perfect for video games.
+- BpjGufoPiobT79j2vtj4: A young female with a velvety, laid-back cadence, exuding late-night warmth and intimacy. Priyanka is the sister of Monika Sogam, one of the most beloved voices on ElevenLabs.
+- kdmDKE6EkgrWrrykO9Qt: Youthful and authentic, with a conversational tone that's relatable and down-to-earth.
+- 1SM7GgM6IMuvQlz2BwM3: Conversational, relaxed male voice
+- ouL9IsyrSnUkCmfnD02u: Professional British character voice - high-pitched, raspy male gnome with snarky comedic timing and true emotional depth. Perfect for fantasy narration, audiobooks, and video games NPC roles.
+- 5l5f8iK3YPeGga21rQIX: A conversational, feminine voice that is perfect for narration.
+- scOwDtmlUjD3prqpp97I: A warm and clear middle-aged American voice. Optimized for v3. Perfect for Agents, IVR, Educational Training, and Audiobooks.
+- NOpBlnGInO9m6vDvFkFC: A friendly grandpa who knows how to enthrall his audience with tall tales and fun adventures.
+- BZgkqPqms7Kj9ulSkVzn: Great for v3, conversation, energetic, happy.
+- yjJ45q8TVCrtMhEKurxY: Quirky mad scientist. Energetic, quirky voice ideal for eccentric characters and inventive narration.
+- TX3LPaxmHKxFdv7VOQHJ: A young male adult with energy and warmth - suitable for reels and shorts.
+- iP95p4xoKVk53GoZ742B: Natural and real, this down-to-earth male voice is great across many use-cases.
+- SOYHLrjzK2X1ezoPC6cr: An animated male warrior ready to charge forward.
+- N2lVS1w4EtoT3dr4eOWO: Deceptively gravelly, yet unsettling edge.
+- FGY2WhTYpPnrIDTdsKH5: This young adult female voice delivers sunny enthusiasm with a quirky attitude.
+- cgSgspJ2msm6clMCkdW9: Young and popular, this playful American female voice is perfect for trendy content.
+- vfaqCOvlrKi4Zp7C2IAm: A deep demon monster. Perfect for video games, characters, and animation. Ghoul, Monster, Fantasy, Dark, Horror, Male.
+- oR4uRy4fHDUGGISL0Rev: Myrddin: The definitive (800+ years old) wizard voice for true magical narration. Commanding magical authority with twinkling wisdom and warmth; perfect for audiobooks, RPGs, and mystical narration.
+- PPzYpIqttlTYA83688JI: A pirate: a jovial and exuberant sea dog. Gristly Cornwall accent with extended vowels and long ARR's!
+
+CRITICAL VOICE ASSIGNMENT RULES:
+- The intro blurb MUST be voiced by EkK5I93UQWFDigLMpZcX. Do not use this voice for any other character.
+- The story narrator MUST be voiced by Z3R5wn05IrDiVCyEkUrK. Do not use this voice for any other character.
 
 Assign one voice_id from the list above to each character you create based on suitability. Include a narrator.
 
@@ -157,22 +168,29 @@ def _get_generator() -> PodcastGenerator:
             voices=VoiceConfig(
                 mode="ai_assigned",
                 allowed_voice_ids=[
-                    "7tRwuZTD1EWi6nydVerp",
-                    "cfc7wVYq4gw4OpcEEAom",
-                    "vfaqCOvlrKi4Zp7C2IAm",
+                    "EkK5I93UQWFDigLMpZcX",
+                    "Z3R5wn05IrDiVCyEkUrK",
+                    "aMSt68OGf4xUZAnLpTU8",
+                    "tnSpp4vdxKPjI9w0GnoV",
+                    "Hjzqw9NR0xFMYU9Us0DL",
+                    "BpjGufoPiobT79j2vtj4",
+                    "kdmDKE6EkgrWrrykO9Qt",
+                    "1SM7GgM6IMuvQlz2BwM3",
+                    "ouL9IsyrSnUkCmfnD02u",
+                    "5l5f8iK3YPeGga21rQIX",
+                    "scOwDtmlUjD3prqpp97I",
+                    "NOpBlnGInO9m6vDvFkFC",
+                    "BZgkqPqms7Kj9ulSkVzn",
                     "yjJ45q8TVCrtMhEKurxY",
+                    "TX3LPaxmHKxFdv7VOQHJ",
+                    "iP95p4xoKVk53GoZ742B",
+                    "SOYHLrjzK2X1ezoPC6cr",
+                    "N2lVS1w4EtoT3dr4eOWO",
+                    "FGY2WhTYpPnrIDTdsKH5",
+                    "cgSgspJ2msm6clMCkdW9",
+                    "vfaqCOvlrKi4Zp7C2IAm",
                     "oR4uRy4fHDUGGISL0Rev",
                     "PPzYpIqttlTYA83688JI",
-                    "ZF6FPAbjXT4488VcRRnw",
-                    "y2Y5MeVPm6ZQXK64WUui",
-                    "Wu86LpENEn32PwtU2hv1",
-                    "FUfBrNit0NNZAwb58KWH",
-                    "EkK5I93UQWFDigLMpZcX",
-                    "qBDvhofpxp92JgXJxDjB",
-                    "c7XGL37TTXR5zdorzHX9",
-                    "3vk47KpWZzIrWkdEhumS",
-                    "b3tuFWghbXYRa9Cs9MJf",
-                    "0TfZ4rvne3QI7UjDxVkM",
                 ],
             ),
             audio=AudioAssetsConfig(

@@ -663,6 +663,7 @@ class PodcastGenerator:
                     inputs=batch,
                     model_id="eleven_v3",
                     output_format="mp3_44100_128",
+                    settings={"stability": 0.5, "use_speaker_boost": False},
                 )
             except Exception as e:
                 raise RuntimeError(f"Failed to generate dialogue audio for batch {bidx}: {e}")
