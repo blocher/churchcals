@@ -1,5 +1,6 @@
 from datetime import date
 import datetime
+from typing import Optional
 
 from saints.podcast_generator import (
     PodcastGenerator,
@@ -138,7 +139,7 @@ def create_full_podcast(target_date: date, publish_date: datetime.datetime = Non
     return _get_generator().create_full_podcast(target_date, publish_date)
 
 
-def generate_next_day_podcast() -> str:
-    return _get_generator().generate_next_day_podcast()
+def generate_next_day_podcast(target_date: Optional[date] = None) -> Optional[str]:
+    return _get_generator().generate_next_day_podcast(target_date)
 
 

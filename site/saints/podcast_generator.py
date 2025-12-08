@@ -1096,11 +1096,14 @@ class PodcastGenerator:
         print("[GEN] Podcast generation complete")
         return audio_rel_path
 
-    def generate_next_day_podcast(self) -> Optional[str]:
+    def generate_next_day_podcast(self, target_date: Optional[datetime.date] = None) -> Optional[str]:
         from zoneinfo import ZoneInfo
         eastern_tz = ZoneInfo("America/New_York")
-        eastern_now = timezone.now().astimezone(eastern_tz)
-        tomorrow = eastern_now.date() + datetime.timedelta(days=1)
+        if target_date is None:
+            eastern_now = timezone.now().astimezone(eastern_tz)
+            target = eastern_now.date() + datetime.timedelta(days=1)
+        else:
+            target = target_date
         # Determine which podcast this generator is targeting
         podcast: Optional[Podcast] = None
         if self.config.linkage.podcast_uuid:
@@ -1116,11 +1119,11 @@ class PodcastGenerator:
         if not podcast:
             podcast = Podcast.objects.filter(religion="catholic").order_by("-created").first()
 
-        # Only block if an episode for this specific podcast already exists for tomorrow
-        if PodcastEpisode.objects.filter(date=tomorrow, podcast=podcast).exists():
+        # Only block if an episode for this specific podcast already exists for the target date
+        if PodcastEpisode.objects.filter(date=target, podcast=podcast).exists():
             return None
         today_5pm = self._create_publish_date(None)
-        return self.create_full_podcast(tomorrow, today_5pm)
+        return self.create_full_podcast(target, today_5pm)
 
 
 # ------------------------------
